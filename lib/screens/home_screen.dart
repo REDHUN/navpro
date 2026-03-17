@@ -168,6 +168,30 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
+
+          // 6. Error Notification
+          Consumer<HomeViewModel>(
+            builder: (context, vm, _) {
+              if (vm.errorMessage == null) return const SizedBox.shrink();
+              return Positioned(
+                bottom: 110,
+                left: 20,
+                right: 20,
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.shade600.withOpacity(0.9),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    vm.errorMessage!,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              );
+            },
+          ),
         ],
       ),
     );

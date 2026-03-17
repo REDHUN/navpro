@@ -22,10 +22,33 @@ class NavigationService {
   bool get isNavigating => _isNavigating;
   bool get isSessionActive => _sessionActive;
 
-  Future<void> initialize() async {
-    await GoogleMapsNavigator.initializeNavigationSession();
-    _sessionActive = true;
-    _setupGeolocatorSpeed();
+  Future<bool> initialize() async {
+    try {
+      // Check if terms are accepted. The dialog must be shown before
+      // initializeNavigationSession() if they haven't been accepted yet.
+      final bool termsAccepted = await GoogleMapsNavigator.areTermsAccepted();
+      if (!termsAccepted) {
+        debugPrint('NavigationService: Terms not accepted. Showing dialog...');
+        final bool accepted = await GoogleMapsNavigator.showTermsAndConditionsDialog(
+          'Driving safely',
+          'By using this app, you agree to drive safely and follow all rules of the road.',
+        );
+        if (!accepted) {
+          debugPrint('NavigationService: Terms were rejected.');
+          return false;
+        }
+      }
+
+      debugPrint('NavigationService: Initializing session...');
+      await GoogleMapsNavigator.initializeNavigationSession();
+      _sessionActive = true;
+      _setupGeolocatorSpeed();
+      debugPrint('NavigationService: Session initialized successfully.');
+      return true;
+    } catch (e) {
+      debugPrint('NavigationService: Failed to initialize session: $e');
+      rethrow; // Re-throw so ViewModel can catch and show the error
+    }
   }
 
   void _setupGeolocatorSpeed() {

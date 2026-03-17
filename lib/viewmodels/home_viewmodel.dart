@@ -4,6 +4,7 @@ import '../models/place_model.dart';
 import '../services/ble_service.dart';
 import '../services/places_service.dart';
 import '../services/navigation_service.dart';
+import '../services/permission_service.dart';
 
 enum SelectionType { none, start, destination }
 
@@ -11,14 +12,17 @@ class HomeViewModel extends ChangeNotifier {
   final BleService _bleService;
   final PlacesService _placesService;
   final NavigationService _navigationService;
+  final PermissionService _permissionService;
 
   HomeViewModel({
     required BleService bleService,
     required PlacesService placesService,
     required NavigationService navigationService,
+    required PermissionService permissionService,
   })  : _bleService = bleService,
         _placesService = placesService,
-        _navigationService = navigationService {
+        _navigationService = navigationService,
+        _permissionService = permissionService {
     _bleService.addListener(notifyListeners);
   }
 
@@ -182,11 +186,25 @@ class HomeViewModel extends ChangeNotifier {
 
   Future<void> initializeNavigation() async {
     try {
-      await _navigationService.initialize();
-      _initializationComplete = true;
+      final permissionsGranted = await _permissionService.requestAllPermissions();
+      if (!permissionsGranted) {
+        _errorMessage = 'Required permissions were not granted.';
+        notifyListeners();
+        return;
+      }
+      
+      final initialized = await _navigationService.initialize();
+      if (!initialized) {
+        _errorMessage = 'Navigation terms were rejected.';
+        _initializationComplete = false;
+      } else {
+        _initializationComplete = true;
+        _errorMessage = null;
+      }
       notifyListeners();
     } catch (e) {
-      _errorMessage = 'Init error: $e';
+      _errorMessage = 'Init error: $e.\n\nTroubleshooting:\n1. Ensure "Navigation SDK" is enabled in Google Cloud Console.\n2. Verify API Key restrictions (Package: com.example.navprov2).\n3. Check if billing is enabled on your Cloud Project.';
+      _initializationComplete = false;
       notifyListeners();
     }
   }

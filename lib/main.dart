@@ -4,6 +4,7 @@ import 'screens/home_screen.dart';
 import 'services/ble_service.dart';
 import 'services/navigation_service.dart';
 import 'services/places_service.dart';
+import 'services/permission_service.dart';
 import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/navigation_viewmodel.dart';
 import 'viewmodels/place_search_view_model.dart';
@@ -24,6 +25,7 @@ class _NavProAppState extends State<NavProApp> {
   late final BleService _bleService;
   late final NavigationService _navigationService;
   late final PlacesService _placesService;
+  late final PermissionService _permissionService;
 
   @override
   void initState() {
@@ -31,6 +33,7 @@ class _NavProAppState extends State<NavProApp> {
     _bleService = BleService();
     _navigationService = NavigationService(_bleService);
     _placesService = PlacesService();
+    _permissionService = PermissionService();
 
     // Navigation SDK initialization is deferred to HomeScreen
     // after terms and location permissions are accepted.
@@ -49,11 +52,13 @@ class _NavProAppState extends State<NavProApp> {
         ChangeNotifierProvider<BleService>.value(value: _bleService),
         Provider<NavigationService>.value(value: _navigationService),
         Provider<PlacesService>.value(value: _placesService),
+        Provider<PermissionService>.value(value: _permissionService),
         ChangeNotifierProvider<HomeViewModel>(
           create: (_) => HomeViewModel(
             bleService: _bleService,
             navigationService: _navigationService,
             placesService: _placesService,
+            permissionService: _permissionService,
           ),
         ),
         ChangeNotifierProvider<NavigationViewModel>(
