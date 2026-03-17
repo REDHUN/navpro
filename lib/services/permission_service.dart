@@ -5,6 +5,7 @@ class PermissionService {
   Future<bool> requestAllPermissions() async {
     Map<Permission, PermissionStatus> statuses = await [
       Permission.location,
+      Permission.notification,
       Permission.bluetoothScan,
       Permission.bluetoothConnect,
     ].request();
