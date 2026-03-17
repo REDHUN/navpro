@@ -44,13 +44,16 @@ class NavigationViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> startNavigation(LatLng destination, bool simulate, {LatLng? start}) async {
+  Future<void> startNavigation(LatLng destination, bool simulate,
+      {LatLng? start,
+      NavigationTravelMode travelMode = NavigationTravelMode.driving}) async {
     _isNavigationReady = false;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      final success = await _navigationService.startNavigation(destination, simulate, start: start);
+      final success = await _navigationService.startNavigation(destination, simulate,
+          start: start, travelMode: travelMode);
       if (success) {
         _isNavigationReady = true;
       } else {

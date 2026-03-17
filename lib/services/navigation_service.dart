@@ -72,6 +72,7 @@ class NavigationService {
     LatLng dest,
     bool simulate, {
     LatLng? start,
+    NavigationTravelMode travelMode = NavigationTravelMode.driving,
   }) async {
     try {
       final List<NavigationWaypoint> waypoints = [];
@@ -87,6 +88,7 @@ class NavigationService {
       final Destinations msg = Destinations(
         waypoints: waypoints,
         displayOptions: NavigationDisplayOptions(showDestinationMarkers: true),
+        routingOptions: RoutingOptions(travelMode: travelMode),
       );
 
       final NavigationRouteStatus status =

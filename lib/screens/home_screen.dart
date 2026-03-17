@@ -82,6 +82,7 @@ class _HomeScreenState extends State<HomeScreen> {
             destination: viewModel.destinationLatLng!,
             start: viewModel.startLocationLatLng,
             simulateRoute: viewModel.simulateRoute,
+            travelMode: viewModel.travelMode,
           ),
         ),
       );
@@ -391,6 +392,20 @@ class _RouteSelectionCard extends StatelessWidget {
           const SizedBox(height: 8),
 
           Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.driving, Icons.directions_car, 'Driving'),
+              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.cycling, Icons.directions_bike, 'Cycling'),
+              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.walking, Icons.directions_walk, 'Walking'),
+              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.twoWheeler, Icons.two_wheeler, 'Two-Wheeler'),
+              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.taxi, Icons.local_taxi, 'Taxi'),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Divider(),
+          const SizedBox(height: 8),
+
+          Row(
             children: [
               Icon(Icons.route, color: Colors.grey.shade600, size: 20),
               const SizedBox(width: 12),
@@ -408,6 +423,29 @@ class _RouteSelectionCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildTravelModeIcon(BuildContext context, HomeViewModel viewModel, NavigationTravelMode mode, IconData icon, String tooltip) {
+    final isSelected = viewModel.travelMode == mode;
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: () => viewModel.setTravelMode(mode),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isSelected ? Colors.blue.shade50 : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            icon,
+            color: isSelected ? Colors.blue.shade900 : Colors.grey.shade400,
+            size: 28,
+          ),
+        ),
       ),
     );
   }

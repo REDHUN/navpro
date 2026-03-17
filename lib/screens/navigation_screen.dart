@@ -8,12 +8,14 @@ class NavigationScreen extends StatefulWidget {
   final LatLng destination;
   final LatLng? start;
   final bool simulateRoute;
+  final NavigationTravelMode travelMode;
 
   const NavigationScreen({
     Key? key,
     required this.destination,
     this.start,
     this.simulateRoute = false,
+    this.travelMode = NavigationTravelMode.driving,
   }) : super(key: key);
 
   @override
@@ -40,6 +42,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
         widget.destination,
         widget.simulateRoute,
         start: widget.start,
+        travelMode: widget.travelMode,
       );
     }
   }

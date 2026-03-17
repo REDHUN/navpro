@@ -38,11 +38,13 @@ class HomeViewModel extends ChangeNotifier {
 
   GoogleNavigationViewController? _mapController;
   SelectionType _pickingType = SelectionType.none;
+  NavigationTravelMode _travelMode = NavigationTravelMode.driving;
 
   PlaceModel? get startLocation => _startLocation;
   PlaceModel? get destination => _destination;
   LatLng? get startLocationLatLng => _startLocationLatLng;
   LatLng? get destinationLatLng => _destinationLatLng;
+  NavigationTravelMode get travelMode => _travelMode;
   
   bool get simulateRoute => _simulateRoute;
   bool get isLoadingRoute => _isLoadingRoute;
@@ -181,6 +183,11 @@ class HomeViewModel extends ChangeNotifier {
 
   void toggleSimulation(bool value) {
     _simulateRoute = value;
+    notifyListeners();
+  }
+
+  void setTravelMode(NavigationTravelMode mode) {
+    _travelMode = mode;
     notifyListeners();
   }
 
