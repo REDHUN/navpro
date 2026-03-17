@@ -15,13 +15,16 @@ class NavigationService {
 
   bool _isNavigating = false;
   double _currentSpeedKmH = 0.0;
+  bool _sessionActive = false;
 
   NavigationService(this.bleService);
 
   bool get isNavigating => _isNavigating;
+  bool get isSessionActive => _sessionActive;
 
   Future<void> initialize() async {
     await GoogleMapsNavigator.initializeNavigationSession();
+    _sessionActive = true;
     _setupGeolocatorSpeed();
   }
 
@@ -43,13 +46,10 @@ class NavigationService {
     try {
       final List<NavigationWaypoint> waypoints = [];
       
-      if (start != null) {
-        waypoints.add(NavigationWaypoint.withLatLngTarget(
-          title: 'Start',
-          target: start,
-        ));
-      }
-
+      // The destination is the target we want to reach.
+      // We don't add the 'start' LatLng as a waypoint because the 
+      // Google Navigation SDK automatically uses the device's current 
+      // location as the origin for guidance.
       waypoints.add(NavigationWaypoint.withLatLngTarget(
         title: 'Destination',
         target: dest,
@@ -67,6 +67,10 @@ class NavigationService {
         await GoogleMapsNavigator.startGuidance();
 
         if (simulate) {
+          if (start != null) {
+            // If a custom start is provided for simulation, move the simulator there
+            await GoogleMapsNavigator.simulator.setUserLocation(start);
+          }
           await GoogleMapsNavigator.simulator
               .simulateLocationsAlongExistingRouteWithOptions(
                 SimulationOptions(speedMultiplier: 5.0),
@@ -177,10 +181,20 @@ class NavigationService {
   }
 
   Future<void> stopNavigation() async {
+    if (!_isNavigating && !_sessionActive) return; // already stopped
     _navInfoSubscription?.cancel();
     _isNavigating = false;
-    await GoogleMapsNavigator.simulator.removeUserLocation();
-    await GoogleMapsNavigator.cleanup();
+    _sessionActive = false;
+    try {
+      await GoogleMapsNavigator.simulator.removeUserLocation();
+    } catch (_) {}
+    try {
+      await GoogleMapsNavigator.stopGuidance();
+    } catch (_) {}
+    try {
+      await GoogleMapsNavigator.cleanup();
+    } catch (_) {}
+    debugPrint('NavigationService: stopNavigation complete');
   }
 
   void dispose() {

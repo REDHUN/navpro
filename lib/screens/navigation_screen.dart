@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_navigation_flutter/google_navigation_flutter.dart';
 import 'package:provider/provider.dart';
+
 import '../viewmodels/navigation_viewmodel.dart';
 
 class NavigationScreen extends StatefulWidget {
@@ -25,66 +26,83 @@ class _NavigationScreenState extends State<NavigationScreen> {
     super.initState();
   }
 
-  void _onViewCreated(GoogleNavigationViewController controller) {
+  void _onViewCreated(GoogleNavigationViewController controller) async {
     final viewModel = context.read<NavigationViewModel>();
     viewModel.onMapCreated(controller);
 
-    // Initial configuration of the controller in the view
-    controller.setNavigationUIEnabled(true);
-    controller.setMyLocationEnabled(true);
+    // Ensure the Google Navigation session is initialized before setting
+    // destinations. The home screen initializes it on first load, but if
+    // stopNavigation() cleaned it up we need to re-initialize here.
+    await viewModel.initialize();
 
-    viewModel.startNavigation(widget.destination, widget.simulateRoute, start: widget.start);
+    if (mounted) {
+      viewModel.startNavigation(
+        widget.destination,
+        widget.simulateRoute,
+        start: widget.start,
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Navigation'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.close),
+    return PopScope(
+      // Ensure we stop navigation when the user tries to pop back
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        context.read<NavigationViewModel>().stopNavigation();
+        Navigator.of(context).pop();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Navigation'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
             onPressed: () {
               context.read<NavigationViewModel>().stopNavigation();
               Navigator.of(context).pop();
             },
           ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          GoogleMapsNavigationView(
-            initialMapToolbarEnabled: true,
-            onViewCreated: _onViewCreated,
-            initialNavigationUIEnabledPreference: NavigationUIEnabledPreference.automatic,
-          ),
-          Selector<NavigationViewModel, bool>(
-            selector: (_, vm) => vm.isNavigationReady,
-            builder: (context, isReady, _) {
-              if (isReady) return const SizedBox.shrink();
-              return const _CalculatingRouteOverlay();
-            },
-          ),
-          Consumer<NavigationViewModel>(
-            builder: (context, viewModel, _) {
-              if (viewModel.errorMessage != null) {
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text(viewModel.errorMessage!)),
-                  );
-                });
-              }
-              return const SizedBox.shrink();
-            },
-          ),
-        ],
+        ),
+        body: Stack(
+          children: [
+            GoogleMapsNavigationView(
+              initialMapToolbarEnabled: true,
+              onViewCreated: _onViewCreated,
+              initialNavigationUIEnabledPreference:
+                  NavigationUIEnabledPreference.automatic,
+            ),
+            Selector<NavigationViewModel, bool>(
+              selector: (_, vm) => vm.isNavigationReady,
+              builder: (context, isReady, _) {
+                if (isReady) return const SizedBox.shrink();
+                return const _CalculatingRouteOverlay();
+              },
+            ),
+            Consumer<NavigationViewModel>(
+              builder: (context, viewModel, _) {
+                if (viewModel.errorMessage != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text(viewModel.errorMessage!)),
+                    );
+                  });
+                }
+                return const SizedBox.shrink();
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
 
   @override
   void dispose() {
-    // ViewModel is maintained by MultiProvider, but we want to stop navigation on exit
+    // ViewModel is in provider, but double-calling stopNavigation in dispose
+    // is safe and acts as a final cleanup for any edge cases.
+    context.read<NavigationViewModel>().stopNavigation();
     super.dispose();
   }
 }

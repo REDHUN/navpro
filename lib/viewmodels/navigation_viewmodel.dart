@@ -10,15 +10,35 @@ class NavigationViewModel extends ChangeNotifier {
   }) : _navigationService = navigationService;
 
   bool _isNavigationReady = false;
+  bool _isInitializing = false;
   String? _errorMessage;
 
   bool get isNavigationReady => _isNavigationReady;
+  bool get isInitializing => _isInitializing;
   String? get errorMessage => _errorMessage;
 
   void onMapCreated(GoogleNavigationViewController controller) {
     _navigationService.navigationViewController = controller;
     _isNavigationReady = false;
     notifyListeners();
+  }
+
+  /// Ensures the navigation session is initialized. Called from the
+  /// NavigationScreen once the map controller is ready.
+  Future<void> initialize() async {
+    if (_navigationService.isSessionActive) return; // already initialized
+    _isInitializing = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _navigationService.initialize();
+    } catch (e) {
+      _errorMessage = 'Initialization error: $e';
+    } finally {
+      _isInitializing = false;
+      notifyListeners();
+    }
   }
 
   Future<void> startNavigation(LatLng destination, bool simulate, {LatLng? start}) async {
@@ -31,7 +51,7 @@ class NavigationViewModel extends ChangeNotifier {
       if (success) {
         _isNavigationReady = true;
       } else {
-        _errorMessage = 'Failed to calculate route';
+        _errorMessage = 'Failed to calculate route. Check your destination and internet connection.';
       }
       notifyListeners();
     } catch (e) {
