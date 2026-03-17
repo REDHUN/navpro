@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:google_navigation_flutter/google_navigation_flutter.dart';
-import 'package:permission_handler/permission_handler.dart';
-import '../models/place_model.dart';
+import 'package:provider/provider.dart';
+
 import '../services/ble_service.dart';
-import '../services/navigation_service.dart';
-import '../services/places_service.dart';
+import '../viewmodels/home_viewmodel.dart';
 import '../widgets/device_scan_dialog.dart';
-import '../widgets/location_search_field.dart';
 import 'navigation_screen.dart';
+import 'place_search_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -18,72 +16,12 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  PlaceModel? _startLocation;
-  PlaceModel? _destination;
-  bool _simulateRoute = false;
-  LatLng? _destinationLatLng;
-  bool _isLoadingRoute = false;
-
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeNavigation();
+      context.read<HomeViewModel>().initializeNavigation();
     });
-  }
-
-  Future<void> _initializeNavigation() async {
-    // 1. Request location and bluetooth permissions sequentially
-    var locStatus = await Permission.locationWhenInUse.request();
-    if (locStatus.isGranted) {
-      // Optional background location (only if when-in-use is granted)
-      await Permission.locationAlways.request();
-    }
-    
-    await [
-      Permission.bluetooth,
-      Permission.bluetoothScan,
-      Permission.bluetoothConnect,
-    ].request();
-
-    // Check if location is granted to proceed with Initialization
-    if (!(await Permission.locationWhenInUse.isGranted)) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Location permission is required for navigation.'),
-          ),
-        );
-      }
-      return;
-    }
-
-    // 2. Check and request Google Maps Navigation terms acceptance
-    bool termsAccepted = await GoogleMapsNavigator.areTermsAccepted();
-    if (!termsAccepted) {
-      if (!mounted) return;
-      termsAccepted = await GoogleMapsNavigator.showTermsAndConditionsDialog(
-            'NavPro V2',
-            'To provide turn-by-turn navigation, NavPro V2 needs to use the Google Maps Navigation SDK.',
-          );
-    }
-
-    if (termsAccepted) {
-      try {
-        if (!mounted) return;
-        await context.read<NavigationService>().initialize();
-      } catch (e) {
-        debugPrint("Error initializing navigation: $e");
-      }
-    } else {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Navigation terms must be accepted to use this app.'),
-          ),
-        );
-      }
-    }
   }
 
   void _showBleScanDialog() {
@@ -95,48 +33,32 @@ class _HomeScreenState extends State<HomeScreen> {
         stopScan: bleService.stopScan,
         connectToDevice: bleService.connectToDevice,
       ),
-    ).then((connected) {
-      // Refresh triggered by notifyListeners in BleService
-    });
+    );
   }
 
-  void _disconnectBle() async {
-    await context.read<BleService>().disconnect();
-    setState(() {});
-  }
+  void _onStartNavigation(HomeViewModel viewModel) async {
+    final success = await viewModel.resolvePoints();
 
-  void _startNavigation() async {
-    if (_destination == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a destination')),
-      );
+    if (!success) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please select valid start and destination points'),
+          ),
+        );
+      }
       return;
     }
 
-    setState(() {
-      _isLoadingRoute = true;
-    });
-
-    // Resolve LatLng for destination
-    _destinationLatLng = await context.read<PlacesService>().getPlaceDetails(_destination!.placeId);
-
-    setState(() {
-      _isLoadingRoute = false;
-    });
-
-    if (_destinationLatLng == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not get coordinates for destination')),
-      );
-      return;
-    }
-
-    if (!context.read<BleService>().isConnected) {
+    if (!viewModel.isBleConnected) {
+      if (!mounted) return;
       final proceed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('BLE Not Connected'),
-          content: const Text('You are not connected to an ESP32. Navigate anyway without sending data?'),
+          content: const Text(
+            'You are not connected to an ESP32. Navigate anyway?',
+          ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
@@ -152,126 +74,470 @@ class _HomeScreenState extends State<HomeScreen> {
       if (proceed != true) return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => NavigationScreen(
-          destination: _destinationLatLng!,
-          simulateRoute: _simulateRoute,
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => NavigationScreen(
+            destination: viewModel.destinationLatLng!,
+            start: viewModel.startLocationLatLng,
+            simulateRoute: viewModel.simulateRoute,
+          ),
         ),
-      ),
-    );
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final bleService = context.watch<BleService>();
-    final isBleConnected = bleService.isConnected;
+    final viewModel = context.read<HomeViewModel>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('NavPro V2'),
-        actions: [
-          FilterChip(
-            label: const Text('Simulate'),
-            selected: _simulateRoute,
-            onSelected: (val) {
-              setState(() {
-                _simulateRoute = val;
-              });
-            },
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(
-              isBleConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
-              color: isBleConnected ? Colors.green : Colors.grey,
+      body: Stack(
+        children: [
+          // 1. Map Background
+          Positioned.fill(
+            child: GoogleMapsNavigationView(
+              onViewCreated: viewModel.onMapCreated,
+              onMapClicked: viewModel.onMapTap,
+              initialNavigationUIEnabledPreference:
+                  NavigationUIEnabledPreference.automatic,
             ),
-            onPressed: _showBleScanDialog,
+          ),
+
+          // 2. Top Header
+          Positioned(top: 40, left: 20, right: 20, child: _TopHeader()),
+
+          // 3. Floating Overlay Logic
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20.0),
+              child: Column(
+                children: [
+                  const SizedBox(height: 100), // Push down below header
+                  // BLE Status Bar
+                  _BleStatusBar(onScanRequest: _showBleScanDialog),
+
+                  const SizedBox(height: 16),
+
+                  // Selection Card
+                  const _RouteSelectionCard(),
+                ],
+              ),
+            ),
+          ),
+
+          // 4. Start Navigation Button
+          Positioned(
+            bottom: 30,
+            left: 20,
+            right: 20,
+            child: _StartNavigationButton(
+              onPressed: () => _onStartNavigation(viewModel),
+            ),
+          ),
+
+          // 5. Picking State Notification
+          Selector<HomeViewModel, SelectionType>(
+            selector: (_, vm) => vm.pickingType,
+            builder: (context, type, _) {
+              if (type == SelectionType.none) return const SizedBox.shrink();
+              return Positioned(
+                top: 120,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.withOpacity(0.9),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      'Tap map to set ${type == SelectionType.start ? "Starting Point" : "Destination"}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // BLE Status Card
-              Card(
-                color: isBleConnected ? Colors.green.shade50 : Colors.red.shade50,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Row(
-                    children: [
-                      Icon(
-                        isBleConnected ? Icons.bluetooth_connected : Icons.bluetooth_disabled,
-                        color: isBleConnected ? Colors.green : Colors.red,
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Text(
-                          isBleConnected ? 'Connected to ESP32' : 'Not Connected to ESP32',
-                          style: const TextStyle(fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: bleService.isConnected ? _disconnectBle : _showBleScanDialog,
-                        child: Text(bleService.isConnected ? 'Disconnect' : 'Connect'),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 24),
-              
-              // Location Inputs
-              const Text(
-                'Where to?',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              
-              /* Note: Current location is assumed as start for real navigation if not simulated,
-                 but we allow them to search for start location if they wanted. For Google API, 
-                 typically you just simulate start location from emulator or use GPS data. */
+    );
+  }
+}
 
-              LocationSearchField(
-                label: 'Destination',
-                placesService: context.read<PlacesService>(),
-                onPlaceSelected: (place) {
-                  setState(() {
-                    _destination = place;
-                  });
-                },
-              ),
-              if (_destination != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: 8.0),
+class _TopHeader extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.1),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A5E),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.navigation, color: Colors.white, size: 20),
+          ),
+          const SizedBox(width: 12),
+          const Text(
+            'NavPro',
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A1A5E),
+            ),
+          ),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: Colors.orange.shade100,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.person, color: Colors.orange, size: 20),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _BleStatusBar extends StatelessWidget {
+  final VoidCallback onScanRequest;
+  const _BleStatusBar({required this.onScanRequest});
+
+  @override
+  Widget build(BuildContext context) {
+    return Selector<HomeViewModel, bool>(
+      selector: (_, vm) => vm.isBleConnected,
+      builder: (context, isConnected, _) {
+        return GestureDetector(
+          onTap: () {
+            final viewModel = context.read<HomeViewModel>();
+            if (isConnected) {
+              viewModel.disconnectBle();
+            } else {
+              onScanRequest();
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isConnected ? Icons.bluetooth_connected : Icons.bluetooth,
+                  color: isConnected ? Colors.blue : Colors.grey,
+                  size: 20,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
                   child: Text(
-                    'Selected: ${_destination!.description}',
-                    style: const TextStyle(color: Colors.green),
+                    isConnected
+                        ? 'ESP32 Connected'
+                        : 'Scanning for BLE devices...',
+                    style: TextStyle(
+                      color: isConnected
+                          ? Colors.blue.shade800
+                          : Colors.grey.shade600,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
-                
-              const SizedBox(height: 32),
-              
-              SizedBox(
-                height: 56,
-                child: ElevatedButton.icon(
-                  icon: _isLoadingRoute 
-                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2,))
-                      : const Icon(Icons.navigation),
-                  label: const Text('START NAVIGATION', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                  ),
-                  onPressed: _isLoadingRoute ? null : _startNavigation,
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey.shade400,
+                  size: 20,
                 ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _RouteSelectionCard extends StatelessWidget {
+  const _RouteSelectionCard();
+
+  @override
+  Widget build(BuildContext context) {
+    // We use context.watch since multiple fields might change
+    final viewModel = context.watch<HomeViewModel>();
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          _buildLocationField(
+            context,
+            label: 'STARTING POINT',
+            hint: 'Search starting point',
+            value: viewModel.startLocation?.name,
+            icon: Icons.radio_button_checked,
+            iconColor: Colors.blue.shade900,
+            isOrigin: true,
+            onMapPick: () => viewModel.setPickingType(SelectionType.start),
+          ),
+
+          Padding(
+            padding: const EdgeInsets.only(left: 31, top: 4, bottom: 4),
+            child: Row(
+              children: [
+                const _DashedLine(height: 40),
+                const Spacer(),
+                GestureDetector(
+                  onTap: viewModel.swapLocations,
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.grey.shade200),
+                    ),
+                    child: Icon(
+                      Icons.swap_vert,
+                      color: Colors.grey.shade600,
+                      size: 20,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          _buildLocationField(
+            context,
+            label: 'DESTINATION',
+            hint: 'Where to?',
+            value: viewModel.destination?.name,
+            icon: Icons.location_on,
+            iconColor: Colors.red.shade600,
+            isOrigin: false,
+            onMapPick: () =>
+                viewModel.setPickingType(SelectionType.destination),
+          ),
+
+          const SizedBox(height: 16),
+          const Divider(),
+          const SizedBox(height: 8),
+
+          Row(
+            children: [
+              Icon(Icons.route, color: Colors.grey.shade600, size: 20),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Simulate Route',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+              Switch(
+                value: viewModel.simulateRoute,
+                onChanged: viewModel.toggleSimulation,
+                activeColor: Colors.blue.shade900,
               ),
             ],
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationField(
+    BuildContext context, {
+    required String label,
+    required String hint,
+    String? value,
+    required IconData icon,
+    required Color iconColor,
+    required bool isOrigin,
+    required VoidCallback onMapPick,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            color: Colors.grey.shade400,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Row(
+          children: [
+            Icon(icon, color: iconColor, size: 24),
+            const SizedBox(width: 12),
+            Expanded(
+              child: InkWell(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => PlaceSearchScreen(
+                        isOrigin: isOrigin,
+                        initialQuery: value ?? '',
+                      ),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 12,
+                    horizontal: 16,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: Text(
+                    value ?? hint,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: value != null
+                          ? const Color(0xFF1A1A2E)
+                          : Colors.grey.shade400,
+                      fontWeight: value != null
+                          ? FontWeight.w600
+                          : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            IconButton(
+              icon: Icon(Icons.map, color: Colors.grey.shade300, size: 20),
+              onPressed: onMapPick,
+              tooltip: 'Pick from Map',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _DashedLine extends StatelessWidget {
+  final double height;
+  const _DashedLine({required this.height});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: height,
+      child: Column(
+        children: List.generate(
+          4,
+          (index) => Container(
+            width: 2,
+            height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 2),
+            color: Colors.grey.shade300,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StartNavigationButton extends StatelessWidget {
+  final VoidCallback onPressed;
+  const _StartNavigationButton({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoading = context.select<HomeViewModel, bool>(
+      (vm) => vm.isLoadingRoute,
+    );
+
+    return SizedBox(
+      height: 64,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF1A1A5E).withOpacity(0.9),
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+          ),
+          elevation: 8,
+          shadowColor: const Color(0xFF1A1A5E).withOpacity(0.4),
+        ),
+        onPressed: isLoading ? null : onPressed,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (isLoading)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            else
+              const Icon(Icons.navigation, size: 24),
+            const SizedBox(width: 12),
+            const Text(
+              'START NAVIGATION',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.2,
+              ),
+            ),
+          ],
         ),
       ),
     );

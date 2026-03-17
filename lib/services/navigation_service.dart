@@ -39,15 +39,24 @@ class NavigationService {
         });
   }
 
-  Future<bool> startNavigation(LatLng dest, bool simulate) async {
+  Future<bool> startNavigation(LatLng dest, bool simulate, {LatLng? start}) async {
     try {
+      final List<NavigationWaypoint> waypoints = [];
+      
+      if (start != null) {
+        waypoints.add(NavigationWaypoint.withLatLngTarget(
+          title: 'Start',
+          target: start,
+        ));
+      }
+
+      waypoints.add(NavigationWaypoint.withLatLngTarget(
+        title: 'Destination',
+        target: dest,
+      ));
+
       final Destinations msg = Destinations(
-        waypoints: <NavigationWaypoint>[
-          NavigationWaypoint.withLatLngTarget(
-            title: 'Destination',
-            target: dest,
-          ),
-        ],
+        waypoints: waypoints,
         displayOptions: NavigationDisplayOptions(showDestinationMarkers: true),
       );
 

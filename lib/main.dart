@@ -4,6 +4,9 @@ import 'screens/home_screen.dart';
 import 'services/ble_service.dart';
 import 'services/navigation_service.dart';
 import 'services/places_service.dart';
+import 'viewmodels/home_viewmodel.dart';
+import 'viewmodels/navigation_viewmodel.dart';
+import 'viewmodels/place_search_view_model.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +49,25 @@ class _NavProAppState extends State<NavProApp> {
         ChangeNotifierProvider<BleService>.value(value: _bleService),
         Provider<NavigationService>.value(value: _navigationService),
         Provider<PlacesService>.value(value: _placesService),
+        ChangeNotifierProvider<HomeViewModel>(
+          create: (_) => HomeViewModel(
+            bleService: _bleService,
+            navigationService: _navigationService,
+            placesService: _placesService,
+          ),
+        ),
+        ChangeNotifierProvider<NavigationViewModel>(
+          create: (_) => NavigationViewModel(
+            navigationService: _navigationService,
+          ),
+        ),
+        ChangeNotifierProxyProvider<HomeViewModel, PlaceSearchViewModel>(
+          create: (context) => PlaceSearchViewModel(
+            placesService: context.read<PlacesService>(),
+            homeViewModel: context.read<HomeViewModel>(),
+          ),
+          update: (context, homeVM, searchVM) => searchVM!..updateHomeViewModel(homeVM),
+        ),
       ],
       child: MaterialApp(
         debugShowCheckedModeBanner: false,
@@ -59,4 +81,3 @@ class _NavProAppState extends State<NavProApp> {
     );
   }
 }
-

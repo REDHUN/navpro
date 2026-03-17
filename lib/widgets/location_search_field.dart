@@ -4,12 +4,16 @@ import '../services/places_service.dart';
 
 class LocationSearchField extends StatefulWidget {
   final String label;
+  final String? hint;
+  final String? initialValue;
   final PlacesService placesService;
   final Function(PlaceModel) onPlaceSelected;
 
   const LocationSearchField({
     Key? key,
     required this.label,
+    this.hint,
+    this.initialValue,
     required this.placesService,
     required this.onPlaceSelected,
   }) : super(key: key);
@@ -19,9 +23,23 @@ class LocationSearchField extends StatefulWidget {
 }
 
 class _LocationSearchFieldState extends State<LocationSearchField> {
-  final TextEditingController _controller = TextEditingController();
+  late TextEditingController _controller;
   List<PlaceModel> _suggestions = [];
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.initialValue);
+  }
+
+  @override
+  void didUpdateWidget(LocationSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialValue != oldWidget.initialValue && widget.initialValue != _controller.text) {
+      _controller.text = widget.initialValue ?? '';
+    }
+  }
 
   void _onSearchChanged(String query) async {
     if (query.isEmpty) {
@@ -46,7 +64,7 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
   }
 
   void _selectPlace(PlaceModel place) {
-    _controller.text = place.description;
+    _controller.text = place.name;
     setState(() {
       _suggestions = [];
     });
@@ -61,8 +79,11 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
         TextField(
           controller: _controller,
           decoration: InputDecoration(
-            labelText: widget.label,
-            border: const OutlineInputBorder(),
+            hintText: widget.hint,
+            hintStyle: TextStyle(color: Colors.grey.shade400, fontSize: 16),
+            border: InputBorder.none,
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(vertical: 8),
             suffixIcon: _isLoading
                 ? const Padding(
                     padding: EdgeInsets.all(12.0),
@@ -72,28 +93,30 @@ class _LocationSearchFieldState extends State<LocationSearchField> {
                       child: CircularProgressIndicator(strokeWidth: 2),
                     ),
                   )
-                : const Icon(Icons.search),
+                : null,
           ),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
           onChanged: _onSearchChanged,
         ),
         if (_suggestions.isNotEmpty)
-          Container(
-            constraints: const BoxConstraints(maxHeight: 200),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
-              borderRadius: BorderRadius.circular(4),
-            ),
-            child: ListView.builder(
-              shrinkWrap: true,
-              itemCount: _suggestions.length,
-              itemBuilder: (context, index) {
-                final place = _suggestions[index];
-                return ListTile(
-                  title: Text(place.description),
-                  onTap: () => _selectPlace(place),
-                );
-              },
+          Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              constraints: const BoxConstraints(maxHeight: 200),
+              child: ListView.builder(
+                shrinkWrap: true,
+                padding: EdgeInsets.zero,
+                itemCount: _suggestions.length,
+                itemBuilder: (context, index) {
+                  final place = _suggestions[index];
+                  return ListTile(
+                    title: Text(place.name, style: const TextStyle(fontSize: 14)),
+                    dense: true,
+                    onTap: () => _selectPlace(place),
+                  );
+                },
+              ),
             ),
           ),
       ],
