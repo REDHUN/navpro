@@ -12,15 +12,17 @@ class NavigationService {
   GoogleNavigationViewController? navigationViewController;
   StreamSubscription<NavInfoEvent>? _navInfoSubscription;
   StreamSubscription<Position>? _positionSubscription;
+  StreamSubscription<OnArrivalEvent>? _onArrivalSubscription;
 
   bool _isNavigating = false;
-  double _currentSpeedKmH = 0.0;
+  final ValueNotifier<double> speedNotifier = ValueNotifier<double>(0.0);
   bool _sessionActive = false;
 
   NavigationService(this.bleService);
 
   bool get isNavigating => _isNavigating;
   bool get isSessionActive => _sessionActive;
+  double get currentSpeedKmH => speedNotifier.value;
 
   Future<bool> initialize() async {
     try {
@@ -29,7 +31,8 @@ class NavigationService {
       final bool termsAccepted = await GoogleMapsNavigator.areTermsAccepted();
       if (!termsAccepted) {
         debugPrint('NavigationService: Terms not accepted. Showing dialog...');
-        final bool accepted = await GoogleMapsNavigator.showTermsAndConditionsDialog(
+        final bool
+        accepted = await GoogleMapsNavigator.showTermsAndConditionsDialog(
           'Driving safely',
           'By using this app, you agree to drive safely and follow all rules of the road.',
         );
@@ -60,23 +63,26 @@ class NavigationService {
           ),
         ).listen((Position position) {
           // Speed is in m/s, convert to km/h
-          _currentSpeedKmH = position.speed * 3.6;
-          if (_currentSpeedKmH < 0) _currentSpeedKmH = 0;
+          speedNotifier.value = position.speed * 3.6;
+          if (speedNotifier.value < 0) speedNotifier.value = 0;
         });
   }
 
-  Future<bool> startNavigation(LatLng dest, bool simulate, {LatLng? start}) async {
+  Future<bool> startNavigation(
+    LatLng dest,
+    bool simulate, {
+    LatLng? start,
+  }) async {
     try {
       final List<NavigationWaypoint> waypoints = [];
-      
+
       // The destination is the target we want to reach.
-      // We don't add the 'start' LatLng as a waypoint because the 
-      // Google Navigation SDK automatically uses the device's current 
+      // We don't add the 'start' LatLng as a waypoint because the
+      // Google Navigation SDK automatically uses the device's current
       // location as the origin for guidance.
-      waypoints.add(NavigationWaypoint.withLatLngTarget(
-        title: 'Destination',
-        target: dest,
-      ));
+      waypoints.add(
+        NavigationWaypoint.withLatLngTarget(title: 'Destination', target: dest),
+      );
 
       final Destinations msg = Destinations(
         waypoints: waypoints,
@@ -121,6 +127,18 @@ class NavigationService {
       _onNavInfoEvent,
       numNextStepsToPreview: 3,
     );
+    _onArrivalSubscription?.cancel();
+    _onArrivalSubscription = GoogleMapsNavigator.setOnArrivalListener((arrivalEvent) {
+      debugPrint('Arrived at waypoint: ${arrivalEvent.waypoint.title}');
+      if (bleService.isConnected) {
+        bleService.sendNavigationData(
+          speed: speedNotifier.value,
+          distanceToTurn: 0,
+          maneuverCode: 6, // Destination Reached
+          arrivalTime: 0,
+        );
+      }
+    });
   }
 
   void _onNavInfoEvent(NavInfoEvent event) {
@@ -129,62 +147,71 @@ class NavigationService {
     final navInfo = event.navInfo;
 
     // Default values if data varies
-    double distToNextTurn = 0.0;
+    double distToNextTurn = (navInfo.distanceToCurrentStepMeters ?? 0)
+        .toDouble();
     int maneuverCode = 0; // STRAIGHT
     int etaSeconds = 0;
 
     final currentStep = navInfo.currentStep;
     if (currentStep != null) {
-      // Fallback to step-by-step distance if direct current step isn't available
-      distToNextTurn = (navInfo.distanceToCurrentStepMeters ?? 0).toDouble();
       maneuverCode = _mapManeuverToCode(currentStep.maneuver);
     }
+
+    // Check if we reached the destination
+    // Handled by setOnArrivalListener for more accuracy
 
     if (navInfo.timeToNextDestinationSeconds != null) {
       etaSeconds = navInfo.timeToNextDestinationSeconds!;
     }
+    final arrivalTimeStr = _calculateEtaHHMM(etaSeconds);
 
     debugPrint(
-      'Nav event: Dist=${distToNextTurn}m, Maneuver=$maneuverCode, ETA=$etaSeconds Current Speed=${_currentSpeedKmH}km/h',
+      'Nav event: Dist=${distToNextTurn}m, Maneuver=$maneuverCode, ETA=$arrivalTimeStr Current Speed=${speedNotifier.value}km/h',
     );
 
     if (bleService.isConnected) {
       bleService.sendNavigationData(
-        speed: _currentSpeedKmH,
+        speed: speedNotifier.value,
         distanceToTurn: distToNextTurn,
         maneuverCode: maneuverCode,
-        etaSeconds: etaSeconds,
+        arrivalTime: arrivalTimeStr,
       );
     }
   }
 
+  int _calculateEtaHHMM(int? secondsRemaining) {
+    if (secondsRemaining == null) return 0;
+    final arrivalTime = DateTime.now().add(Duration(seconds: secondsRemaining));
+    return (arrivalTime.hour * 100) + arrivalTime.minute;
+  }
+
   int _mapManeuverToCode(Maneuver maneuver) {
-    // 0 = STRAIGHT, 1 = LEFT, 2 = RIGHT, 3 = U-TURN, 4 = SLIGHT_LEFT, 5 = SLIGHT_RIGHT, 6 = ROUNDABOUT
+    // 0: Straight, 1: Left, 2: Right, 3: Slight Left, 4: Slight Right, 5: U-Turn, 6: Destination Reached
     switch (maneuver) {
       case Maneuver.straight:
       case Maneuver.unknown:
       case Maneuver.turnKeepLeft:
       case Maneuver.turnKeepRight:
-        return 0; // STRAIGHT
+        return 0; // Straight
       case Maneuver.turnLeft:
       case Maneuver.turnSharpLeft:
-        return 1; // LEFT
+        return 1; // Left
       case Maneuver.turnRight:
       case Maneuver.turnSharpRight:
-        return 2; // RIGHT
-      case Maneuver.turnUTurnClockwise:
-      case Maneuver.turnUTurnCounterclockwise:
-        return 3; // U-TURN
+        return 2; // Right
       case Maneuver.turnSlightLeft:
       case Maneuver.forkLeft:
       case Maneuver.onRampLeft:
       case Maneuver.offRampLeft:
-        return 4; // SLIGHT_LEFT
+        return 3; // Slight Left
       case Maneuver.turnSlightRight:
       case Maneuver.forkRight:
       case Maneuver.onRampRight:
       case Maneuver.offRampRight:
-        return 5; // SLIGHT_RIGHT
+        return 4; // Slight Right
+      case Maneuver.turnUTurnClockwise:
+      case Maneuver.turnUTurnCounterclockwise:
+        return 5; // U-Turn
       case Maneuver.roundaboutClockwise:
       case Maneuver.roundaboutCounterclockwise:
       case Maneuver.roundaboutExitClockwise:
@@ -197,7 +224,7 @@ class NavigationService {
       case Maneuver.roundaboutStraightCounterclockwise:
       case Maneuver.roundaboutUTurnClockwise:
       case Maneuver.roundaboutUTurnCounterclockwise:
-        return 6; // ROUNDABOUT
+        return 0; // Roundabouts treated as straight/follow path unless specific exit turn is needed
       default:
         return 0;
     }
@@ -223,5 +250,7 @@ class NavigationService {
   void dispose() {
     _positionSubscription?.cancel();
     _navInfoSubscription?.cancel();
+    _onArrivalSubscription?.cancel();
+    speedNotifier.dispose();
   }
 }

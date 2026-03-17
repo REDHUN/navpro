@@ -69,7 +69,7 @@ class BleService extends ChangeNotifier {
     required double speed,
     required double distanceToTurn,
     required int maneuverCode,
-    required int etaSeconds,
+    required int arrivalTime,
   }) async {
     // Throttle to 1 second
     final now = DateTime.now();
@@ -84,7 +84,7 @@ class BleService extends ChangeNotifier {
       "s": double.parse(speed.toStringAsFixed(1)),
       "d": distanceToTurn.toInt(),
       "i": maneuverCode,
-      "e": etaSeconds,
+      "e": arrivalTime,
     };
     final String jsonStr = jsonEncode(payload);
 
@@ -92,7 +92,7 @@ class BleService extends ChangeNotifier {
     print('Speed: $speed km/h');
     print('Distance: ${distanceToTurn.toInt()}m');
     print('Maneuver: $maneuverCode');
-    print('ETA: ${etaSeconds}s');
+    print('ETA: $arrivalTime (HHMM)');
     print('Raw JSON: $jsonStr');
     if (!isConnected) print('(BLE Not Connected - Data not sent)');
     print('----------------');
@@ -101,8 +101,8 @@ class BleService extends ChangeNotifier {
 
     try {
       final List<int> bytes = utf8.encode("$jsonStr\n");
-      // Write without response for speed
-      await _rxCharacteristic!.write(bytes, withoutResponse: true);
+      // Use standard write since some devices don't support WRITE_NO_RESPONSE
+      await _rxCharacteristic!.write(bytes, withoutResponse: false);
     } catch (e) {
       print('Failed to send BLE data: $e');
     }

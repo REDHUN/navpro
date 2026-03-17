@@ -7,7 +7,9 @@ class NavigationViewModel extends ChangeNotifier {
 
   NavigationViewModel({
     required NavigationService navigationService,
-  }) : _navigationService = navigationService;
+  }) : _navigationService = navigationService {
+    _navigationService.speedNotifier.addListener(notifyListeners);
+  }
 
   bool _isNavigationReady = false;
   bool _isInitializing = false;
@@ -16,6 +18,7 @@ class NavigationViewModel extends ChangeNotifier {
   bool get isNavigationReady => _isNavigationReady;
   bool get isInitializing => _isInitializing;
   String? get errorMessage => _errorMessage;
+  double get currentSpeed => _navigationService.currentSpeedKmH;
 
   void onMapCreated(GoogleNavigationViewController controller) {
     _navigationService.navigationViewController = controller;
@@ -64,5 +67,11 @@ class NavigationViewModel extends ChangeNotifier {
     _navigationService.stopNavigation();
     _isNavigationReady = false;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _navigationService.speedNotifier.removeListener(notifyListeners);
+    super.dispose();
   }
 }
