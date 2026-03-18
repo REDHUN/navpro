@@ -143,6 +143,35 @@ class _NavigationScreenState extends State<NavigationScreen> {
                 },
               ),
             ),
+            // Voice Guidance Toggle
+            Positioned(
+              right: 16,
+              bottom: 180,
+              child: Consumer<NavigationViewModel>(
+                builder: (context, vm, _) {
+                  return Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.9),
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.1),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        vm.isVoiceEnabled ? Icons.volume_up : Icons.volume_off,
+                        color: vm.isVoiceEnabled ? Colors.blue : Colors.grey,
+                      ),
+                      onPressed: vm.toggleVoiceGuidance,
+                    ),
+                  );
+                },
+              ),
+            ),
           ],
         ),
       ),

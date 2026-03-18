@@ -143,6 +143,18 @@ class NavigationService {
     });
   }
 
+  Future<void> setVoiceGuidance(bool enabled) async {
+    await GoogleMapsNavigator.setAudioGuidance(
+      NavigationAudioGuidanceSettings(
+        isBluetoothAudioEnabled: true,
+        isVibrationEnabled: true,
+        guidanceType: enabled
+            ? NavigationAudioGuidanceType.alertsAndGuidance
+            : NavigationAudioGuidanceType.silent,
+      ),
+    );
+  }
+
   void _onNavInfoEvent(NavInfoEvent event) {
     if (!_isNavigating) return;
 

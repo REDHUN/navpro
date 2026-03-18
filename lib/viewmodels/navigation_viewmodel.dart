@@ -13,12 +13,20 @@ class NavigationViewModel extends ChangeNotifier {
 
   bool _isNavigationReady = false;
   bool _isInitializing = false;
+  bool _isVoiceEnabled = true;
   String? _errorMessage;
 
   bool get isNavigationReady => _isNavigationReady;
   bool get isInitializing => _isInitializing;
+  bool get isVoiceEnabled => _isVoiceEnabled;
   String? get errorMessage => _errorMessage;
   double get currentSpeed => _navigationService.currentSpeedKmH;
+
+  Future<void> toggleVoiceGuidance() async {
+    _isVoiceEnabled = !_isVoiceEnabled;
+    await _navigationService.setVoiceGuidance(_isVoiceEnabled);
+    notifyListeners();
+  }
 
   void onMapCreated(GoogleNavigationViewController controller) {
     _navigationService.navigationViewController = controller;
