@@ -22,23 +22,34 @@ class NavigationScreen extends StatefulWidget {
   _NavigationScreenState createState() => _NavigationScreenState();
 }
 
-class _NavigationScreenState extends State<NavigationScreen> {
+class _NavigationScreenState extends State<NavigationScreen> with WidgetsBindingObserver {
+  late NavigationViewModel _viewModel;
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Grab the reference once while the context is valid
+    _viewModel = context.read<NavigationViewModel>();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Navigation should stop ONLY when the app is closed (detached).
+    if (state == AppLifecycleState.detached) {
+      debugPrint('NavigationScreen: App state $state, stopping navigation');
+      _viewModel.stopNavigation();
+    }
   }
 
   void _onViewCreated(GoogleNavigationViewController controller) async {
-    final viewModel = context.read<NavigationViewModel>();
-    viewModel.onMapCreated(controller);
+    _viewModel.onMapCreated(controller);
 
-    // Ensure the Google Navigation session is initialized before setting
-    // destinations. The home screen initializes it on first load, but if
-    // stopNavigation() cleaned it up we need to re-initialize here.
-    await viewModel.initialize();
+    // Ensure the Google Navigation session is initialized
+    await _viewModel.initialize();
 
     if (mounted) {
-      viewModel.startNavigation(
+      _viewModel.startNavigation(
         widget.destination,
         widget.simulateRoute,
         start: widget.start,
@@ -50,21 +61,24 @@ class _NavigationScreenState extends State<NavigationScreen> {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      // Ensure we stop navigation when the user tries to pop back
       canPop: false,
-      onPopInvokedWithResult: (didPop, result) {
+      onPopInvokedWithResult: (didPop, result) async {
         if (didPop) return;
-        context.read<NavigationViewModel>().stopNavigation();
-        Navigator.of(context).pop();
+        await _viewModel.stopNavigation();
+        if (mounted) {
+          Navigator.of(context).pop();
+        }
       },
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Navigation'),
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
-            onPressed: () {
-              context.read<NavigationViewModel>().stopNavigation();
-              Navigator.of(context).pop();
+            onPressed: () async {
+              await _viewModel.stopNavigation();
+              if (mounted) {
+                Navigator.of(context).pop();
+              }
             },
           ),
         ),
@@ -99,7 +113,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
             // Speed Indicator
             Positioned(
               left: 16,
-              bottom: 150, // Adjusted to be above the Google logo/copyright
+              bottom: 150,
               child: Selector<NavigationViewModel, double>(
                 selector: (_, vm) => vm.currentSpeed,
                 builder: (context, speed, _) {
@@ -183,9 +197,9 @@ class _NavigationScreenState extends State<NavigationScreen> {
 
   @override
   void dispose() {
-    // ViewModel is in provider, but double-calling stopNavigation in dispose
-    // is safe and acts as a final cleanup for any edge cases.
-    context.read<NavigationViewModel>().stopNavigation();
+    WidgetsBinding.instance.removeObserver(this);
+    // Use the saved reference instead of looking up the context
+    _viewModel.stopNavigation();
     super.dispose();
   }
 }

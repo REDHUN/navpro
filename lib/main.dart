@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'screens/home_screen.dart';
 import 'services/ble_service.dart';
@@ -21,28 +22,37 @@ class NavProApp extends StatefulWidget {
   _NavProAppState createState() => _NavProAppState();
 }
 
-class _NavProAppState extends State<NavProApp> {
+class _NavProAppState extends State<NavProApp> with WidgetsBindingObserver {
   late final BleService _bleService;
   late final NavigationService _navigationService;
   late final PlacesService _placesService;
   late final PermissionService _permissionService;
+  
+  static const _channel = MethodChannel('com.example.navprov2/navigation');
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _bleService = BleService();
     _navigationService = NavigationService(_bleService);
     _placesService = PlacesService();
     _permissionService = PermissionService();
-
-    // Navigation SDK initialization is deferred to HomeScreen
-    // after terms and location permissions are accepted.
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _navigationService.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      // Force kill the process on detach to stop sticky foreground services
+      _channel.invokeMethod('forceStopNavigation');
+    }
   }
 
   @override

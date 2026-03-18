@@ -74,8 +74,8 @@ class NavigationViewModel extends ChangeNotifier {
     }
   }
 
-  void stopNavigation() {
-    _navigationService.stopNavigation();
+  Future<void> stopNavigation() async {
+    await _navigationService.stopNavigation();
     _isNavigationReady = false;
     notifyListeners();
   }

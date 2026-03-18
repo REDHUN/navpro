@@ -245,26 +245,41 @@ class NavigationService {
   }
 
   Future<void> stopNavigation() async {
-    if (!_isNavigating && !_sessionActive) return; // already stopped
-    _navInfoSubscription?.cancel();
+    debugPrint('NavigationService: stopNavigation starting...');
     _isNavigating = false;
     _sessionActive = false;
+
+    _navInfoSubscription?.cancel();
+    _navInfoSubscription = null;
+    _onArrivalSubscription?.cancel();
+    _onArrivalSubscription = null;
+    _positionSubscription?.cancel();
+    _positionSubscription = null;
+
+    try {
+      if (await GoogleMapsNavigator.isGuidanceRunning()) {
+        await GoogleMapsNavigator.stopGuidance();
+      }
+    } catch (e) {
+      debugPrint('NavigationService: Error stopping guidance: $e');
+    }
+
     try {
       await GoogleMapsNavigator.simulator.removeUserLocation();
-    } catch (_) {}
-    try {
-      await GoogleMapsNavigator.stopGuidance();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('NavigationService: Error removing user location: $e');
+    }
+
     try {
       await GoogleMapsNavigator.cleanup();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('NavigationService: Error cleaning up navigator: $e');
+    }
     debugPrint('NavigationService: stopNavigation complete');
   }
 
   void dispose() {
-    _positionSubscription?.cancel();
-    _navInfoSubscription?.cancel();
-    _onArrivalSubscription?.cancel();
+    stopNavigation();
     speedNotifier.dispose();
   }
 }
