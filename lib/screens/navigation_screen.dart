@@ -99,7 +99,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
             // Speed Indicator
             Positioned(
               left: 16,
-              bottom: 110, // Adjusted to be above the Google logo/copyright
+              bottom: 150, // Adjusted to be above the Google logo/copyright
               child: Selector<NavigationViewModel, double>(
                 selector: (_, vm) => vm.currentSpeed,
                 builder: (context, speed, _) {
@@ -132,10 +132,7 @@ class _NavigationScreenState extends State<NavigationScreen> {
                         ),
                         const Text(
                           'km/h',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.black54,
-                          ),
+                          style: TextStyle(fontSize: 12, color: Colors.black54),
                         ),
                       ],
                     ),
@@ -145,11 +142,17 @@ class _NavigationScreenState extends State<NavigationScreen> {
             ),
             // Voice Guidance Toggle
             Positioned(
-              right: 16,
-              bottom: 180,
+              right: 18,
+              bottom: 160,
               child: Consumer<NavigationViewModel>(
                 builder: (context, vm, _) {
                   return Container(
+                    height: 60,
+                    width: 60,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.9),
                       shape: BoxShape.circle,
