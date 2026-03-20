@@ -158,444 +158,457 @@ class _NavigationScreenState extends State<NavigationScreen>
           }
         },
         child: Scaffold(
-          body: Stack(
-            children: [
-              GoogleMapsNavigationView(
-                initialMapToolbarEnabled: !widget.useAdvancedUi,
-                initialCompassEnabled: !widget.useAdvancedUi,
-                onViewCreated: _onViewCreated,
-                initialPadding: widget.useAdvancedUi
-                    ? const EdgeInsets.only(bottom: 250)
-                    : const EdgeInsets.only(top: 100, bottom: 100),
-                initialNavigationUIEnabledPreference: widget.useAdvancedUi
-                    ? NavigationUIEnabledPreference.automatic
-                    : NavigationUIEnabledPreference.automatic,
-                onPromptVisibilityChanged: (bool promptVisible) {
-                  if (mounted) {
-                    setState(() => _isPromptVisible = promptVisible);
-                  }
-                },
-                onCameraMoveStarted: (CameraPosition position, bool isGesture) {
-                  if (isGesture && mounted) {
-                    setState(() => _isFollowing = false);
-                  }
-                },
-              ),
+          body: SafeArea(
+            child: Stack(
+              children: [
+                GoogleMapsNavigationView(
+                  initialMapToolbarEnabled: !widget.useAdvancedUi,
+                  initialCompassEnabled: !widget.useAdvancedUi,
+                  onViewCreated: _onViewCreated,
+                  initialPadding: widget.useAdvancedUi
+                      ? const EdgeInsets.only(bottom: 250)
+                      : const EdgeInsets.only(top: 100, bottom: 100),
+                  initialNavigationUIEnabledPreference: widget.useAdvancedUi
+                      ? NavigationUIEnabledPreference.automatic
+                      : NavigationUIEnabledPreference.automatic,
+                  onPromptVisibilityChanged: (bool promptVisible) {
+                    if (mounted) {
+                      setState(() => _isPromptVisible = promptVisible);
+                    }
+                  },
+                  onCameraMoveStarted:
+                      (CameraPosition position, bool isGesture) {
+                        if (isGesture && mounted) {
+                          setState(() => _isFollowing = false);
+                        }
+                      },
+                ),
 
-              // Status Bar Blur Overlay
-              if (widget.useAdvancedUi)
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  height: MediaQuery.of(context).padding.top,
-                  child: ClipRect(
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        color: Colors.white.withValues(alpha: 0.1),
+                // Status Bar Blur Overlay
+                if (widget.useAdvancedUi)
+                  Positioned(
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: MediaQuery.of(context).padding.top,
+                    child: ClipRect(
+                      child: BackdropFilter(
+                        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                        child: Container(
+                          color: Colors.white.withValues(alpha: 0.1),
+                        ),
                       ),
                     ),
                   ),
+
+                Selector<NavigationViewModel, bool>(
+                  selector: (_, vm) => vm.isNavigationReady,
+                  builder: (context, isReady, _) {
+                    return const SizedBox.shrink();
+                    //  return const _CalculatingRouteOverlay();
+                  },
+                ),
+                Consumer<NavigationViewModel>(
+                  builder: (context, viewModel, _) {
+                    if (viewModel.errorMessage != null) {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (viewModel.errorMessage != null) {
+                          SnackBarUtils.showStyledSnackBar(
+                            context,
+                            viewModel.errorMessage!,
+                            isError: true,
+                          );
+                        }
+                      });
+                    }
+                    return const SizedBox.shrink();
+                  },
                 ),
 
-              Selector<NavigationViewModel, bool>(
-                selector: (_, vm) => vm.isNavigationReady,
-                builder: (context, isReady, _) {
-                  return const SizedBox.shrink();
-                  //  return const _CalculatingRouteOverlay();
-                },
-              ),
-              Consumer<NavigationViewModel>(
-                builder: (context, viewModel, _) {
-                  if (viewModel.errorMessage != null) {
-                    WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (viewModel.errorMessage != null) {
-                        SnackBarUtils.showStyledSnackBar(
-                          context,
-                          viewModel.errorMessage!,
-                          isError: true,
-                        );
-                      }
-                    });
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
-
-              // Top Instruction Card
-              if (widget.useAdvancedUi)
-                Positioned(
-                  top: 0,
-                  left: 16,
-                  right: 16,
-                  child: SafeArea(
-                    child: Consumer<NavigationViewModel>(
-                      builder: (context, vm, _) {
-                        final navData = vm.navData;
-                        if (navData == null) return const SizedBox.shrink();
-                        return Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 8,
-                          ),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
-                              begin: Alignment.topLeft,
-                              end: Alignment.bottomRight,
+                // Top Instruction Card
+                if (widget.useAdvancedUi)
+                  Positioned(
+                    top: 0,
+                    left: 16,
+                    right: 16,
+                    child: SafeArea(
+                      child: Consumer<NavigationViewModel>(
+                        builder: (context, vm, _) {
+                          final navData = vm.navData;
+                          if (navData == null) return const SizedBox.shrink();
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 8,
                             ),
-                            borderRadius: BorderRadius.circular(100),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.2),
-                                blurRadius: 15,
-                                offset: const Offset(0, 5),
+                            decoration: BoxDecoration(
+                              gradient: const LinearGradient(
+                                colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
                               ),
-                            ],
-                          ),
-                          child: Row(
-                            children: [
-                              // Maneuver Icon in a lighter circle
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.2),
-                                  shape: BoxShape.circle,
+                              borderRadius: BorderRadius.circular(100),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.2),
+                                  blurRadius: 15,
+                                  offset: const Offset(0, 5),
                                 ),
-                                child: Icon(
-                                  _getManeuverIcon(navData.maneuver),
-                                  color: Colors.white,
-                                  size: 28,
-                                ),
-                              ),
-                              const SizedBox(width: 16),
-                              // Instruction and Distance
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Text(
-                                      navData.nextStepInstruction,
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-
-                                    const SizedBox(height: 2),
-                                    Text(
-                                      navData.nextStepDistance,
-                                      style: TextStyle(
-                                        color: Colors.white.withValues(
-                                          alpha: 0.8,
-                                        ),
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              // Voice Toggle
-                              GestureDetector(
-                                onTap: vm.toggleVoiceGuidance,
-                                child: Container(
-                                  padding: const EdgeInsets.all(10),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                // Maneuver Icon in a lighter circle
+                                Container(
+                                  padding: const EdgeInsets.all(12),
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.1),
+                                    color: Colors.white.withValues(alpha: 0.2),
                                     shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                    ),
                                   ),
                                   child: Icon(
-                                    vm.isVoiceEnabled
-                                        ? Icons.volume_up
-                                        : Icons.volume_off,
+                                    _getManeuverIcon(navData.maneuver),
                                     color: Colors.white,
                                     size: 28,
                                   ),
                                 ),
+                                const SizedBox(width: 16),
+                                // Instruction and Distance
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text(
+                                        navData.nextStepInstruction,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: const TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        navData.nextStepDistance,
+                                        style: TextStyle(
+                                          color: Colors.white.withValues(
+                                            alpha: 0.8,
+                                          ),
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                // Voice Toggle
+                                GestureDetector(
+                                  onTap: vm.toggleVoiceGuidance,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.1,
+                                      ),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.2,
+                                        ),
+                                      ),
+                                    ),
+                                    child: Icon(
+                                      vm.isVoiceEnabled
+                                          ? Icons.volume_up
+                                          : Icons.volume_off,
+                                      color: Colors.white,
+                                      size: 28,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+
+                // Bottom Left "Re-centre" Button
+                if (!_isPromptVisible && !_isFollowing)
+                  Positioned(
+                    left: 16,
+                    bottom: widget.useAdvancedUi ? 270 : 170,
+                    child: GestureDetector(
+                      onTap: () {
+                        _navigationViewController?.followMyLocation(
+                          CameraPerspective.tilted,
+                        );
+                        setState(() => _isFollowing = true);
+                      },
+
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(30),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.navigation_outlined,
+                              color: Color(0xFF00796B),
+                              size: 20,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Re-centre',
+                              style: TextStyle(
+                                color: Color(0xFF00796B),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+
+                // Speed Indicator
+                if (!_isPromptVisible)
+                  Positioned(
+                    left: 16,
+                    bottom:
+                        (widget.useAdvancedUi ? 150 : 50) +
+                        60, // Move above Re-centre
+
+                    child: Selector<NavigationViewModel, double>(
+                      selector: (_, vm) => vm.currentSpeed,
+                      builder: (context, speed, _) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.9),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.1),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                speed.toStringAsFixed(0),
+                                style: const TextStyle(
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF3F51B5),
+                                ),
                               ),
                               const SizedBox(width: 4),
+                              const Text(
+                                'km/h',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.black54,
+                                ),
+                              ),
                             ],
                           ),
                         );
                       },
                     ),
                   ),
-                ),
 
-              // Bottom Left "Re-centre" Button
-              if (!_isPromptVisible && !_isFollowing)
-                Positioned(
-                  left: 16,
-                  bottom: widget.useAdvancedUi ? 270 : 170,
-                  child: GestureDetector(
-                    onTap: () {
-                      _navigationViewController?.followMyLocation(
-                        CameraPerspective.tilted,
-                      );
-                      setState(() => _isFollowing = true);
-                    },
+                // Floating Map Controls (Right Side)
+                if (!_isPromptVisible)
+                  Positioned(
+                    right: 30,
 
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(30),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.1),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
+                    bottom: widget.useAdvancedUi ? 250 : 150,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // Search button (mimicking image)
+                        const SizedBox(height: 12),
+                        // Sound toggle button (mimicking image)
+                        if (!widget.useAdvancedUi)
+                          Consumer<NavigationViewModel>(
+                            builder: (context, vm, _) {
+                              return _MapButton(
+                                icon: vm.isVoiceEnabled
+                                    ? Icons.volume_up
+                                    : Icons.volume_off,
+                                onPressed: vm.toggleVoiceGuidance,
+                              );
+                            },
                           ),
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.navigation_outlined,
-                            color: Color(0xFF00796B),
-                            size: 20,
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            'Re-centre',
-                            style: TextStyle(
-                              color: Color(0xFF00796B),
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
+                        const SizedBox(height: 12),
+
+                        // Hazard button (mimicking image)
+                      ],
                     ),
                   ),
-                ),
 
-              // Speed Indicator
-              if (!_isPromptVisible)
-                Positioned(
-                  left: 16,
-                  bottom:
-                      (widget.useAdvancedUi ? 150 : 50) +
-                      60, // Move above Re-centre
-
-                  child: Selector<NavigationViewModel, double>(
-                    selector: (_, vm) => vm.currentSpeed,
-                    builder: (context, speed, _) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
+                // Bottom Arrival Card
+                if (widget.useAdvancedUi && !_isPromptVisible)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Consumer<NavigationViewModel>(
+                      builder: (context, vm, _) {
+                        final navData = vm.navData;
+                        if (navData == null) return const SizedBox.shrink();
+                        return Container(
+                          decoration: const BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(32),
                             ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              speed.toStringAsFixed(0),
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF3F51B5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 20,
+                                offset: Offset(0, -5),
                               ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'km/h',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                  ),
-                ),
-
-              // Floating Map Controls (Right Side)
-              if (!_isPromptVisible)
-                Positioned(
-                  right: 30,
-
-                  bottom: widget.useAdvancedUi ? 250 : 150,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Search button (mimicking image)
-                      const SizedBox(height: 12),
-                      // Sound toggle button (mimicking image)
-                      if (!widget.useAdvancedUi)
-                        Consumer<NavigationViewModel>(
-                          builder: (context, vm, _) {
-                            return _MapButton(
-                              icon: vm.isVoiceEnabled
-                                  ? Icons.volume_up
-                                  : Icons.volume_off,
-                              onPressed: vm.toggleVoiceGuidance,
-                            );
-                          },
-                        ),
-                      const SizedBox(height: 12),
-
-                      // Hazard button (mimicking image)
-                    ],
-                  ),
-                ),
-
-              // Bottom Arrival Card
-              if (widget.useAdvancedUi && !_isPromptVisible)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Consumer<NavigationViewModel>(
-                    builder: (context, vm, _) {
-                      final navData = vm.navData;
-                      if (navData == null) return const SizedBox.shrink();
-                      return Container(
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.vertical(
-                            top: Radius.circular(32),
+                            ],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 20,
-                              offset: Offset(0, -5),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            // Drag Handle
-                            Container(
-                              width: 40,
-                              height: 4,
-                              margin: const EdgeInsets.symmetric(vertical: 12),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[300],
-                                borderRadius: BorderRadius.circular(2),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              // Drag Handle
+                              Container(
+                                width: 40,
+                                height: 4,
+                                margin: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.grey[300],
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          navData.totalTimeRemaining,
-                                          style: const TextStyle(
-                                            color: Color(0xFF1A237E),
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.bold,
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  24,
+                                  0,
+                                  24,
+                                  20,
+                                ),
+                                child: Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            navData.totalTimeRemaining,
+                                            style: const TextStyle(
+                                              color: Color(0xFF1A237E),
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.bold,
+                                            ),
                                           ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Row(
-                                          children: [
-                                            Text(
-                                              navData.totalDistanceRemaining,
-                                              style: const TextStyle(
+                                          const SizedBox(height: 4),
+                                          Row(
+                                            children: [
+                                              Text(
+                                                navData.totalDistanceRemaining,
+                                                style: const TextStyle(
+                                                  color: Colors.black54,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              const Text(
+                                                '•',
+                                                style: TextStyle(
+                                                  color: Colors.black26,
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              const Icon(
+                                                Icons.access_time_filled,
+                                                size: 16,
                                                 color: Colors.black54,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w500,
                                               ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            const Text(
-                                              '•',
-                                              style: TextStyle(
-                                                color: Colors.black26,
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                navData.estimatedArrivalTime,
+                                                style: const TextStyle(
+                                                  color: Colors.black54,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
                                               ),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            const Icon(
-                                              Icons.access_time_filled,
-                                              size: 16,
-                                              color: Colors.black54,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              navData.estimatedArrivalTime,
-                                              style: const TextStyle(
-                                                color: Colors.black54,
-                                                fontSize: 16,
-                                                fontWeight: FontWeight.w500,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  // Close Button
-                                  GestureDetector(
-                                    onTap: () async {
-                                      await _viewModel.stopNavigation();
-                                      if (mounted) {
-                                        Navigator.of(context).pop();
-                                      }
-                                    },
-                                    child: Container(
-                                      padding: const EdgeInsets.all(12),
-                                      decoration: BoxDecoration(
-                                        color: Colors.red[50],
-                                        shape: BoxShape.circle,
-                                      ),
-                                      child: const Icon(
-                                        Icons.close,
-                                        color: Colors.red,
-                                        size: 24,
+                                            ],
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                  ),
-                                ],
+                                    // Close Button
+                                    GestureDetector(
+                                      onTap: () async {
+                                        await _viewModel.stopNavigation();
+                                        if (mounted) {
+                                          Navigator.of(context).pop();
+                                        }
+                                      },
+                                      child: Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red[50],
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.red,
+                                          size: 24,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
 
-                            SizedBox(
-                              height: MediaQuery.of(context).padding.bottom,
-                            ),
-                          ],
-                        ),
-                      );
-                    },
+                              SizedBox(
+                                height: MediaQuery.of(context).padding.bottom,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
