@@ -70,7 +70,7 @@ class _NavigationScreenState extends State<NavigationScreen>
 
     if (widget.useAdvancedUi) {
       // Professional UI padding
-      const double baseBottomPadding = 250.0;
+      const double baseBottomPadding = 170.0;
       const double baseTopPadding = 120.0;
 
       final EdgeInsets padding = EdgeInsets.only(
@@ -231,160 +231,103 @@ class _NavigationScreenState extends State<NavigationScreen>
                       builder: (context, vm, _) {
                         final navData = vm.navData;
                         if (navData == null) return const SizedBox.shrink();
-                        return Column(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(20),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF3F51B5),
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withValues(alpha: 0.2),
-                                    blurRadius: 15,
-                                    offset: const Offset(0, 5),
-                                  ),
-                                ],
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(100),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.2),
+                                blurRadius: 15,
+                                offset: const Offset(0, 5),
                               ),
-                              child: Row(
-                                children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(12),
-                                    decoration: BoxDecoration(
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              // Maneuver Icon in a lighter circle
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  _getManeuverIcon(navData.maneuver),
+                                  color: Colors.white,
+                                  size: 28,
+                                ),
+                              ),
+                              const SizedBox(width: 16),
+                              // Instruction and Distance
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(
+                                      navData.nextStepInstruction,
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      navData.nextStepDistance,
+                                      style: TextStyle(
+                                        color: Colors.white.withValues(
+                                          alpha: 0.8,
+                                        ),
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Voice Toggle
+                              GestureDetector(
+                                onTap: vm.toggleVoiceGuidance,
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withValues(alpha: 0.1),
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
                                       color: Colors.white.withValues(
                                         alpha: 0.2,
                                       ),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: Icon(
-                                      _getManeuverIcon(navData.maneuver),
-                                      color: Colors.white,
-                                      size: 32,
                                     ),
                                   ),
-                                  const SizedBox(width: 20),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.baseline,
-                                          textBaseline: TextBaseline.alphabetic,
-                                          children: [
-                                            Text(
-                                              navData.nextStepDistance.contains(
-                                                    ' ',
-                                                  )
-                                                  ? navData.nextStepDistance
-                                                        .split(' ')[0]
-                                                  : navData.nextStepDistance,
-                                              style: const TextStyle(
-                                                color: Colors.white,
-                                                fontSize: 32,
-                                                fontWeight: FontWeight.bold,
-                                              ),
-                                            ),
-                                            const SizedBox(width: 4),
-                                            if (navData.nextStepDistance
-                                                .contains(' '))
-                                              Text(
-                                                navData.nextStepDistance.split(
-                                                  ' ',
-                                                )[1],
-                                                style: TextStyle(
-                                                  color: Colors.white
-                                                      .withValues(alpha: 0.8),
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w500,
-                                                ),
-                                              ),
-                                          ],
-                                        ),
-                                        Text(
-                                          navData.nextStepInstruction,
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.9,
-                                            ),
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.normal,
-                                          ),
-                                          maxLines: 2,
-                                          overflow: TextOverflow.ellipsis,
-                                        ),
-                                      ],
-                                    ),
+                                  child: Icon(
+                                    vm.isVoiceEnabled
+                                        ? Icons.volume_up
+                                        : Icons.volume_off,
+                                    color: Colors.white,
+                                    size: 28,
                                   ),
-                                  IconButton(
-                                    icon: Icon(
-                                      vm.isVoiceEnabled
-                                          ? Icons.volume_up
-                                          : Icons.volume_off,
-                                      color: Colors.white,
-                                    ),
-                                    onPressed: vm.toggleVoiceGuidance,
-                                  ),
-                                ],
+                                ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(width: 4),
+                            ],
+                          ),
                         );
                       },
                     ),
-                  ),
-                ),
-
-              // Speed Indicator
-              if (!_isPromptVisible)
-                Positioned(
-                  left: 16,
-                  bottom:
-                      (widget.useAdvancedUi ? 200 : 120) +
-                      60, // Move above Re-centre
-
-                  child: Selector<NavigationViewModel, double>(
-                    selector: (_, vm) => vm.currentSpeed,
-                    builder: (context, speed, _) {
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.9),
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
-                            ),
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              speed.toStringAsFixed(0),
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF3F51B5),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            const Text(
-                              'km/h',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
                   ),
                 ),
 
@@ -392,7 +335,7 @@ class _NavigationScreenState extends State<NavigationScreen>
               if (!_isPromptVisible && !_isFollowing)
                 Positioned(
                   left: 16,
-                  bottom: widget.useAdvancedUi ? 330 : 120,
+                  bottom: widget.useAdvancedUi ? 270 : 170,
                   child: GestureDetector(
                     onTap: () {
                       _navigationViewController?.followMyLocation(
@@ -440,6 +383,58 @@ class _NavigationScreenState extends State<NavigationScreen>
                   ),
                 ),
 
+              // Speed Indicator
+              if (!_isPromptVisible)
+                Positioned(
+                  left: 16,
+                  bottom:
+                      (widget.useAdvancedUi ? 150 : 50) +
+                      60, // Move above Re-centre
+
+                  child: Selector<NavigationViewModel, double>(
+                    selector: (_, vm) => vm.currentSpeed,
+                    builder: (context, speed, _) {
+                      return Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.1),
+                              blurRadius: 10,
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              speed.toStringAsFixed(0),
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF3F51B5),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const Text(
+                              'km/h',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
               // Floating Map Controls (Right Side)
               if (!_isPromptVisible)
                 Positioned(
@@ -481,7 +476,6 @@ class _NavigationScreenState extends State<NavigationScreen>
                       final navData = vm.navData;
                       if (navData == null) return const SizedBox.shrink();
                       return Container(
-                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
                         decoration: const BoxDecoration(
                           color: Colors.white,
                           borderRadius: BorderRadius.vertical(
@@ -498,149 +492,107 @@ class _NavigationScreenState extends State<NavigationScreen>
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
+                            // Drag Handle
                             Container(
                               width: 40,
                               height: 4,
-                              margin: const EdgeInsets.only(bottom: 20),
+                              margin: const EdgeInsets.symmetric(vertical: 12),
                               decoration: BoxDecoration(
                                 color: Colors.grey[300],
                                 borderRadius: BorderRadius.circular(2),
                               ),
                             ),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const Text(
-                                      'TIME TO ARRIVAL',
-                                      style: TextStyle(
-                                        color: Colors.grey,
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.bold,
-                                        letterSpacing: 1.2,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Column(
                                       crossAxisAlignment:
-                                          CrossAxisAlignment.baseline,
-                                      textBaseline: TextBaseline.alphabetic,
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          navData.totalTimeRemaining.contains(
-                                                ' ',
-                                              )
-                                              ? navData.totalTimeRemaining
-                                                    .split(' ')[0]
-                                              : navData.totalTimeRemaining,
+                                          navData.totalTimeRemaining,
                                           style: const TextStyle(
                                             color: Color(0xFF1A237E),
-                                            fontSize: 48,
+                                            fontSize: 32,
                                             fontWeight: FontWeight.bold,
                                           ),
                                         ),
-                                        const SizedBox(width: 8),
-                                        if (navData.totalTimeRemaining.contains(
-                                          ' ',
-                                        ))
-                                          Text(
-                                            navData.totalTimeRemaining.split(
-                                              ' ',
-                                            )[1],
-                                            style: const TextStyle(
-                                              color: Color(0xFF1A237E),
-                                              fontSize: 24,
-                                              fontWeight: FontWeight.w500,
+                                        const SizedBox(height: 4),
+                                        Row(
+                                          children: [
+                                            Text(
+                                              navData.totalDistanceRemaining,
+                                              style: const TextStyle(
+                                                color: Colors.black54,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                              ),
                                             ),
-                                          ),
+                                            const SizedBox(width: 8),
+                                            const Text(
+                                              '•',
+                                              style: TextStyle(
+                                                color: Colors.black26,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            const Icon(
+                                              Icons.access_time_filled,
+                                              size: 16,
+                                              color: Colors.black54,
+                                            ),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              navData.estimatedArrivalTime,
+                                              style: const TextStyle(
+                                                color: Colors.black54,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w500,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
                                       ],
                                     ),
-                                  ],
-                                ),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Text(
-                                      navData.totalDistanceRemaining,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
+                                  ),
+                                  // Close Button
+                                  GestureDetector(
+                                    onTap: () async {
+                                      await _viewModel.stopNavigation();
+                                      if (mounted) {
+                                        Navigator.of(context).pop();
+                                      }
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(12),
+                                      decoration: BoxDecoration(
+                                        color: Colors.red[50],
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.close,
+                                        color: Colors.red,
+                                        size: 24,
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.access_time,
-                                          size: 18,
-                                          color: Colors.grey,
-                                        ),
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          navData.estimatedArrivalTime,
-                                          style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.black87,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ],
+                                  ),
+                                ],
+                              ),
                             ),
-                            const SizedBox(height: 24),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: ElevatedButton.icon(
-                                    icon: const Icon(
-                                      Icons.share,
-                                      color: Colors.white,
-                                    ),
-                                    label: const Text('Share ETA'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF3F51B5),
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      textStyle: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    onPressed: () {},
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                InkWell(
-                                  onTap: () async {
-                                    await _viewModel.stopNavigation();
-                                    if (mounted) {
-                                      Navigator.of(context).pop();
-                                    }
-                                  },
-                                  child: Container(
-                                    padding: const EdgeInsets.all(16),
-                                    decoration: BoxDecoration(
-                                      color: Colors.red[50],
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: const Icon(
-                                      Icons.close,
-                                      color: Colors.red,
-                                      size: 28,
-                                    ),
-                                  ),
-                                ),
-                              ],
+                            // Progress Bar
+                            const LinearProgressIndicator(
+                              value: 0.6, // Placeholder progress
+                              backgroundColor: Color(0xFFE8EAF6),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Color(0xFF3F51B5),
+                              ),
+                              minHeight: 4,
+                            ),
+                            SizedBox(
+                              height: MediaQuery.of(context).padding.bottom,
                             ),
                           ],
                         ),
