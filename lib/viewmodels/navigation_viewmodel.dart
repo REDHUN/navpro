@@ -9,6 +9,7 @@ class NavigationViewModel extends ChangeNotifier {
     required NavigationService navigationService,
   }) : _navigationService = navigationService {
     _navigationService.speedNotifier.addListener(notifyListeners);
+    _navigationService.navDataNotifier.addListener(notifyListeners);
   }
 
   bool _isNavigationReady = false;
@@ -21,6 +22,7 @@ class NavigationViewModel extends ChangeNotifier {
   bool get isVoiceEnabled => _isVoiceEnabled;
   String? get errorMessage => _errorMessage;
   double get currentSpeed => _navigationService.currentSpeedKmH;
+  NavData? get navData => _navigationService.navData;
 
   Future<void> toggleVoiceGuidance() async {
     _isVoiceEnabled = !_isVoiceEnabled;
@@ -83,6 +85,7 @@ class NavigationViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _navigationService.speedNotifier.removeListener(notifyListeners);
+    _navigationService.navDataNotifier.removeListener(notifyListeners);
     super.dispose();
   }
 }

@@ -78,12 +78,14 @@ class _HomeScreenState extends State<HomeScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => NavigationScreen(
-            destination: viewModel.destinationLatLng!,
-            start: viewModel.startLocationLatLng,
-            simulateRoute: viewModel.simulateRoute,
-            travelMode: viewModel.travelMode,
-          ),
+            builder: (context) => NavigationScreen(
+              destination: viewModel.destinationLatLng!,
+              start: viewModel.startLocationLatLng,
+              simulateRoute: viewModel.simulateRoute,
+              travelMode: viewModel.travelMode,
+              useAdvancedUi: viewModel.useAdvancedUi,
+            ),
+
         ),
       );
     }
@@ -422,8 +424,27 @@ class _RouteSelectionCard extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Icon(Icons.auto_awesome, color: Colors.grey.shade600, size: 20),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Text(
+                  'Use Professional UI',
+                  style: TextStyle(fontWeight: FontWeight.w500),
+                ),
+              ),
+              Switch(
+                value: viewModel.useAdvancedUi,
+                onChanged: viewModel.toggleAdvancedUi,
+                activeColor: Colors.blue.shade900,
+              ),
+            ],
+          ),
         ],
       ),
+
     );
   }
 

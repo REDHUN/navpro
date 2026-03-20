@@ -32,9 +32,11 @@ class HomeViewModel extends ChangeNotifier {
   LatLng? _destinationLatLng;
 
   bool _simulateRoute = false;
+  bool _useAdvancedUi = true;
   bool _isLoadingRoute = false;
   bool _initializationComplete = false;
   String? _errorMessage;
+
 
   GoogleNavigationViewController? _mapController;
   SelectionType _pickingType = SelectionType.none;
@@ -47,6 +49,7 @@ class HomeViewModel extends ChangeNotifier {
   NavigationTravelMode get travelMode => _travelMode;
   
   bool get simulateRoute => _simulateRoute;
+  bool get useAdvancedUi => _useAdvancedUi;
   bool get isLoadingRoute => _isLoadingRoute;
   bool get isBleConnected => _bleService.isConnected;
   bool get initializationComplete => _initializationComplete;
@@ -186,7 +189,13 @@ class HomeViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void toggleAdvancedUi(bool value) {
+    _useAdvancedUi = value;
+    notifyListeners();
+  }
+
   void setTravelMode(NavigationTravelMode mode) {
+
     _travelMode = mode;
     notifyListeners();
   }

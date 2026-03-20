@@ -6,6 +6,26 @@ import 'package:google_navigation_flutter/google_navigation_flutter.dart';
 
 import 'ble_service.dart';
 
+class NavData {
+  final String nextStepDistance;
+  final String nextStepInstruction;
+  final Maneuver maneuver;
+  final String totalDistanceRemaining;
+  final String totalTimeRemaining;
+  final String estimatedArrivalTime;
+  final String? trafficInfo;
+
+  NavData({
+    required this.nextStepDistance,
+    required this.nextStepInstruction,
+    required this.maneuver,
+    required this.totalDistanceRemaining,
+    required this.totalTimeRemaining,
+    required this.estimatedArrivalTime,
+    this.trafficInfo,
+  });
+}
+
 class NavigationService {
   final BleService bleService;
 
@@ -16,6 +36,7 @@ class NavigationService {
 
   bool _isNavigating = false;
   final ValueNotifier<double> speedNotifier = ValueNotifier<double>(0.0);
+  final ValueNotifier<NavData?> navDataNotifier = ValueNotifier<NavData?>(null);
   bool _sessionActive = false;
 
   NavigationService(this.bleService);
@@ -23,16 +44,14 @@ class NavigationService {
   bool get isNavigating => _isNavigating;
   bool get isSessionActive => _sessionActive;
   double get currentSpeedKmH => speedNotifier.value;
+  NavData? get navData => navDataNotifier.value;
 
   Future<bool> initialize() async {
     try {
-      // Check if terms are accepted. The dialog must be shown before
-      // initializeNavigationSession() if they haven't been accepted yet.
       final bool termsAccepted = await GoogleMapsNavigator.areTermsAccepted();
       if (!termsAccepted) {
         debugPrint('NavigationService: Terms not accepted. Showing dialog...');
-        final bool
-        accepted = await GoogleMapsNavigator.showTermsAndConditionsDialog(
+        final bool accepted = await GoogleMapsNavigator.showTermsAndConditionsDialog(
           'Driving safely',
           'By using this app, you agree to drive safely and follow all rules of the road.',
         );
@@ -50,22 +69,20 @@ class NavigationService {
       return true;
     } catch (e) {
       debugPrint('NavigationService: Failed to initialize session: $e');
-      rethrow; // Re-throw so ViewModel can catch and show the error
+      rethrow;
     }
   }
 
   void _setupGeolocatorSpeed() {
-    _positionSubscription =
-        Geolocator.getPositionStream(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-            distanceFilter: 1,
-          ),
-        ).listen((Position position) {
-          // Speed is in m/s, convert to km/h
-          speedNotifier.value = position.speed * 3.6;
-          if (speedNotifier.value < 0) speedNotifier.value = 0;
-        });
+    _positionSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 1,
+      ),
+    ).listen((Position position) {
+      speedNotifier.value = position.speed * 3.6;
+      if (speedNotifier.value < 0) speedNotifier.value = 0;
+    });
   }
 
   Future<bool> startNavigation(
@@ -76,11 +93,6 @@ class NavigationService {
   }) async {
     try {
       final List<NavigationWaypoint> waypoints = [];
-
-      // The destination is the target we want to reach.
-      // We don't add the 'start' LatLng as a waypoint because the
-      // Google Navigation SDK automatically uses the device's current
-      // location as the origin for guidance.
       waypoints.add(
         NavigationWaypoint.withLatLngTarget(title: 'Destination', target: dest),
       );
@@ -91,21 +103,18 @@ class NavigationService {
         routingOptions: RoutingOptions(travelMode: travelMode),
       );
 
-      final NavigationRouteStatus status =
-          await GoogleMapsNavigator.setDestinations(msg);
+      final NavigationRouteStatus status = await GoogleMapsNavigator.setDestinations(msg);
 
       if (status == NavigationRouteStatus.statusOk) {
         await GoogleMapsNavigator.startGuidance();
 
         if (simulate) {
           if (start != null) {
-            // If a custom start is provided for simulation, move the simulator there
             await GoogleMapsNavigator.simulator.setUserLocation(start);
           }
-          await GoogleMapsNavigator.simulator
-              .simulateLocationsAlongExistingRouteWithOptions(
-                SimulationOptions(speedMultiplier: 5.0),
-              );
+          await GoogleMapsNavigator.simulator.simulateLocationsAlongExistingRouteWithOptions(
+            SimulationOptions(speedMultiplier: 5.0),
+          );
         }
 
         await navigationViewController?.setNavigationUIEnabled(true);
@@ -148,9 +157,7 @@ class NavigationService {
       NavigationAudioGuidanceSettings(
         isBluetoothAudioEnabled: true,
         isVibrationEnabled: true,
-        guidanceType: enabled
-            ? NavigationAudioGuidanceType.alertsAndGuidance
-            : NavigationAudioGuidanceType.silent,
+        guidanceType: enabled ? NavigationAudioGuidanceType.alertsAndGuidance : NavigationAudioGuidanceType.silent,
       ),
     );
   }
@@ -159,25 +166,36 @@ class NavigationService {
     if (!_isNavigating) return;
 
     final navInfo = event.navInfo;
-
-    // Default values if data varies
-    double distToNextTurn = (navInfo.distanceToCurrentStepMeters ?? 0)
-        .toDouble();
-    int maneuverCode = 0; // STRAIGHT
+    double distToNextTurn = (navInfo.distanceToCurrentStepMeters ?? 0).toDouble();
+    int maneuverCode = 0;
     int etaSeconds = 0;
 
     final currentStep = navInfo.currentStep;
+    String nextStepInstruction = "";
+    Maneuver currentManeuver = Maneuver.unknown;
+
     if (currentStep != null) {
       maneuverCode = _mapManeuverToCode(currentStep.maneuver);
+      nextStepInstruction = currentStep.fullInstructions ?? "";
+      currentManeuver = currentStep.maneuver;
     }
-
-    // Check if we reached the destination
-    // Handled by setOnArrivalListener for more accuracy
 
     if (navInfo.timeToNextDestinationSeconds != null) {
       etaSeconds = navInfo.timeToNextDestinationSeconds!;
     }
-    final arrivalTimeStr = _calculateEtaHHMM(etaSeconds);
+    final arrivalTimeInt = _calculateEtaHHMM(etaSeconds);
+    final arrivalTimeStr = _formatEtaTime(etaSeconds);
+
+    // Update the UI notifier
+    navDataNotifier.value = NavData(
+      nextStepDistance: _formatDistance(distToNextTurn),
+      nextStepInstruction: nextStepInstruction,
+      maneuver: currentManeuver,
+      totalDistanceRemaining: _formatDistance((navInfo.distanceToNextDestinationMeters ?? 0).toDouble()),
+      totalTimeRemaining: _formatDuration(etaSeconds),
+      estimatedArrivalTime: arrivalTimeStr,
+      trafficInfo: null,
+    );
 
     debugPrint(
       'Nav event: Dist=${distToNextTurn}m, Maneuver=$maneuverCode, ETA=$arrivalTimeStr Current Speed=${speedNotifier.value}km/h',
@@ -188,9 +206,39 @@ class NavigationService {
         speed: speedNotifier.value,
         distanceToTurn: distToNextTurn,
         maneuverCode: maneuverCode,
-        arrivalTime: arrivalTimeStr,
+        arrivalTime: arrivalTimeInt,
       );
     }
+  }
+
+  String _formatDistance(double meters) {
+    if (meters >= 1000) {
+      return "${(meters / 1000).toStringAsFixed(1)} km";
+    } else {
+      return "${meters.toStringAsFixed(0)} m";
+    }
+  }
+
+  String _formatDuration(int seconds) {
+    if (seconds < 60) {
+      return "$seconds sec"; // RESTORED FIX
+    }
+    int minutes = (seconds / 60).round();
+    if (minutes < 60) {
+      return "$minutes min";
+    } else {
+      int hours = minutes ~/ 60;
+      int mins = minutes % 60;
+      return "${hours}h ${mins}m";
+    }
+  }
+
+  String _formatEtaTime(int secondsRemaining) {
+    final arrivalTime = DateTime.now().add(Duration(seconds: secondsRemaining));
+    final hour = arrivalTime.hour > 12 ? arrivalTime.hour - 12 : (arrivalTime.hour == 0 ? 12 : arrivalTime.hour);
+    final minute = arrivalTime.minute.toString().padLeft(2, '0');
+    final amPm = arrivalTime.hour >= 12 ? "pm" : "am";
+    return "$hour:$minute $amPm";
   }
 
   int _calculateEtaHHMM(int? secondsRemaining) {
@@ -200,45 +248,31 @@ class NavigationService {
   }
 
   int _mapManeuverToCode(Maneuver maneuver) {
-    // 0: Straight, 1: Left, 2: Right, 3: Slight Left, 4: Slight Right, 5: U-Turn, 6: Destination Reached
     switch (maneuver) {
       case Maneuver.straight:
       case Maneuver.unknown:
       case Maneuver.turnKeepLeft:
       case Maneuver.turnKeepRight:
-        return 0; // Straight
+        return 0;
       case Maneuver.turnLeft:
       case Maneuver.turnSharpLeft:
-        return 1; // Left
+        return 1;
       case Maneuver.turnRight:
       case Maneuver.turnSharpRight:
-        return 2; // Right
+        return 2;
       case Maneuver.turnSlightLeft:
       case Maneuver.forkLeft:
       case Maneuver.onRampLeft:
       case Maneuver.offRampLeft:
-        return 3; // Slight Left
+        return 3;
       case Maneuver.turnSlightRight:
       case Maneuver.forkRight:
       case Maneuver.onRampRight:
       case Maneuver.offRampRight:
-        return 4; // Slight Right
+        return 4;
       case Maneuver.turnUTurnClockwise:
       case Maneuver.turnUTurnCounterclockwise:
-        return 5; // U-Turn
-      case Maneuver.roundaboutClockwise:
-      case Maneuver.roundaboutCounterclockwise:
-      case Maneuver.roundaboutExitClockwise:
-      case Maneuver.roundaboutExitCounterclockwise:
-      case Maneuver.roundaboutLeftClockwise:
-      case Maneuver.roundaboutLeftCounterclockwise:
-      case Maneuver.roundaboutRightClockwise:
-      case Maneuver.roundaboutRightCounterclockwise:
-      case Maneuver.roundaboutStraightClockwise:
-      case Maneuver.roundaboutStraightCounterclockwise:
-      case Maneuver.roundaboutUTurnClockwise:
-      case Maneuver.roundaboutUTurnCounterclockwise:
-        return 0; // Roundabouts treated as straight/follow path unless specific exit turn is needed
+        return 5;
       default:
         return 0;
     }
@@ -281,5 +315,6 @@ class NavigationService {
   void dispose() {
     stopNavigation();
     speedNotifier.dispose();
+    navDataNotifier.dispose();
   }
 }
