@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_navigation_flutter/google_navigation_flutter.dart';
 import 'package:provider/provider.dart';
-import '../utils/snack_bar_utils.dart';
 
+import '../utils/snack_bar_utils.dart';
 import '../viewmodels/navigation_viewmodel.dart';
 
 class NavigationScreen extends StatefulWidget {
@@ -202,8 +202,8 @@ class _NavigationScreenState extends State<NavigationScreen>
               Selector<NavigationViewModel, bool>(
                 selector: (_, vm) => vm.isNavigationReady,
                 builder: (context, isReady, _) {
-                  if (isReady) return const SizedBox.shrink();
-                  return const _CalculatingRouteOverlay();
+                  return const SizedBox.shrink();
+                  //  return const _CalculatingRouteOverlay();
                 },
               ),
               Consumer<NavigationViewModel>(
@@ -217,7 +217,6 @@ class _NavigationScreenState extends State<NavigationScreen>
                           isError: true,
                         );
                       }
-
                     });
                   }
                   return const SizedBox.shrink();
@@ -671,17 +670,56 @@ class _CalculatingRouteOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Center(
-      child: Card(
-        child: Padding(
-          padding: EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text('Calculating Route...'),
-            ],
+    return Positioned.fill(
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5.0, sigmaY: 5.0),
+        child: Container(
+          color: Colors.black.withOpacity(0.3),
+          child: Center(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(
+                      valueColor: AlwaysStoppedAnimation<Color>(
+                        const Color(0xFF1A1A5E),
+                      ),
+                      strokeWidth: 4,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'Calculating Route...',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A5E),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Finding the best way to your destination',
+                    style: TextStyle(fontSize: 14, color: Colors.grey.shade600),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ),
