@@ -3,6 +3,7 @@ import 'package:google_navigation_flutter/google_navigation_flutter.dart';
 import 'package:provider/provider.dart';
 
 import '../services/ble_service.dart';
+import '../utils/snack_bar_utils.dart';
 import '../viewmodels/home_viewmodel.dart';
 import '../widgets/device_scan_dialog.dart';
 import 'navigation_screen.dart';
@@ -43,14 +44,15 @@ class _HomeScreenState extends State<HomeScreen> {
 
     if (!success) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please select valid start and destination points'),
-          ),
+        SnackBarUtils.showStyledSnackBar(
+          context,
+          'Please select valid start and destination points',
+          isError: true,
         );
       }
       return;
     }
+
 
     if (!viewModel.isBleConnected) {
       if (!mounted) return;

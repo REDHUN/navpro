@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_navigation_flutter/google_navigation_flutter.dart';
 import 'package:provider/provider.dart';
+import '../utils/snack_bar_utils.dart';
 
 import '../viewmodels/navigation_viewmodel.dart';
 
@@ -209,11 +210,14 @@ class _NavigationScreenState extends State<NavigationScreen>
                 builder: (context, viewModel, _) {
                   if (viewModel.errorMessage != null) {
                     WidgetsBinding.instance.addPostFrameCallback((_) {
-                      if (mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(viewModel.errorMessage!)),
+                      if (viewModel.errorMessage != null) {
+                        SnackBarUtils.showStyledSnackBar(
+                          context,
+                          viewModel.errorMessage!,
+                          isError: true,
                         );
                       }
+
                     });
                   }
                   return const SizedBox.shrink();

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import '../utils/snack_bar_utils.dart';
+
 
 class DeviceScanDialog extends StatefulWidget {
   final Future<void> Function(Function(List<ScanResult>)) startScan;
@@ -80,12 +82,13 @@ class _DeviceScanDialogState extends State<DeviceScanDialog> {
       if (success) {
         Navigator.of(context).pop(true); // Return success
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to connect or find UART service'),
-          ),
+        SnackBarUtils.showStyledSnackBar(
+          context,
+          'Failed to connect or find UART service',
+          isError: true,
         );
       }
+
     }
   }
 
