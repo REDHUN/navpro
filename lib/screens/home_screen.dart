@@ -21,6 +21,8 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<HomeViewModel>().initializeNavigation();
+      // Ensure focus is cleared when returning to Home
+      FocusManager.instance.primaryFocus?.unfocus();
     });
   }
 
@@ -54,23 +56,138 @@ class _HomeScreenState extends State<HomeScreen> {
       if (!mounted) return;
       final proceed = await showDialog<bool>(
         context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('BLE Not Connected'),
-          content: const Text(
-            'You are not connected to an ESP32. Navigate anyway?',
+        builder: (context) => Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(32),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top Icon with Status Dot
+                Stack(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.bluetooth,
+                          color: Color(0xFF3F51B5), size: 32),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
+                
+                // Title
+                const Text(
+                  'BLE Not Connected',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                
+                // Description
+                RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Color(0xFF6B7280),
+                      height: 1.5,
+                    ),
+                    children: [
+                      const TextSpan(text: 'You are not connected to an '),
+                      TextSpan(
+                        text: 'ESP32',
+                        style: TextStyle(
+                          color: const Color(0xFF3F51B5),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const TextSpan(text: '. Navigate anyway?'),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Proceed Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.pop(context, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3F51B5),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                      ),
+                      elevation: 0,
+                    ),
+                    child: const Text('Proceed',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Cancel Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 56,
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context, false),
+                    style: TextButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: const Color(0xFF374151),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        side: const BorderSide(color: Color(0xFFE5E7EB)),
+                      ),
+                    ),
+                    child: const Text('Cancel',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+                
+                const SizedBox(height: 32),
+                
+                // Footer
+                const Text(
+                  'HARDWARE STATUS: DISCONNECTED',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF9CA3AF),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ],
+            ),
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const Text('Proceed'),
-            ),
-          ],
         ),
       );
+
       if (proceed != true) return;
     }
 
@@ -78,14 +195,13 @@ class _HomeScreenState extends State<HomeScreen> {
       Navigator.push(
         context,
         MaterialPageRoute(
-            builder: (context) => NavigationScreen(
-              destination: viewModel.destinationLatLng!,
-              start: viewModel.startLocationLatLng,
-              simulateRoute: viewModel.simulateRoute,
-              travelMode: viewModel.travelMode,
-              useAdvancedUi: viewModel.useAdvancedUi,
-            ),
-
+          builder: (context) => NavigationScreen(
+            destination: viewModel.destinationLatLng!,
+            start: viewModel.startLocationLatLng,
+            simulateRoute: viewModel.simulateRoute,
+            travelMode: viewModel.travelMode,
+            useAdvancedUi: viewModel.useAdvancedUi,
+          ),
         ),
       );
     }
@@ -96,43 +212,49 @@ class _HomeScreenState extends State<HomeScreen> {
     final viewModel = context.read<HomeViewModel>();
 
     return Scaffold(
+      resizeToAvoidBottomInset: false,
       body: Stack(
         children: [
           // 1. Map Background
-          Positioned.fill(
-            child: GoogleMapsNavigationView(
-              onViewCreated: viewModel.onMapCreated,
-              onMapClicked: viewModel.onMapTap,
-              initialNavigationUIEnabledPreference:
-                  NavigationUIEnabledPreference.automatic,
-            ),
+          GoogleMapsNavigationView(
+            onViewCreated: viewModel.onMapCreated,
+            onMapClicked: viewModel.onMapTap,
+            initialNavigationUIEnabledPreference:
+                NavigationUIEnabledPreference.automatic,
           ),
 
           // 2. Top Header
           Positioned(top: 40, left: 20, right: 20, child: _TopHeader()),
 
           // 3. Floating Overlay Logic
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20.0),
-              child: Column(
-                children: [
-                  const SizedBox(height: 100), // Push down below header
-                  // BLE Status Bar
-                  _BleStatusBar(onScanRequest: _showBleScanDialog),
+          Positioned.fill(
+            child: SafeArea(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Column(
+                  children: [
+                    const SizedBox(height: 100), // Push down below header
+                    // BLE Status Bar
+                    _BleStatusBar(onScanRequest: _showBleScanDialog),
 
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // Selection Card
-                  const _RouteSelectionCard(),
-                ],
+                    // Selection Card
+                    const _RouteSelectionCard(),
+
+                    // Minimal padding at bottom
+                    const SizedBox(
+                      height: 120,
+                    ), // Keep some padding for the fixed start button
+                  ],
+                ),
               ),
             ),
           ),
 
           // 4. Start Navigation Button
           Positioned(
-            bottom: 30,
+            bottom: 60,
             left: 20,
             right: 20,
             child: _StartNavigationButton(
@@ -396,11 +518,41 @@ class _RouteSelectionCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.driving, Icons.directions_car, 'Driving'),
-              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.cycling, Icons.directions_bike, 'Cycling'),
-              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.walking, Icons.directions_walk, 'Walking'),
-              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.twoWheeler, Icons.two_wheeler, 'Two-Wheeler'),
-              _buildTravelModeIcon(context, viewModel, NavigationTravelMode.taxi, Icons.local_taxi, 'Taxi'),
+              _buildTravelModeIcon(
+                context,
+                viewModel,
+                NavigationTravelMode.driving,
+                Icons.directions_car,
+                'Driving',
+              ),
+              _buildTravelModeIcon(
+                context,
+                viewModel,
+                NavigationTravelMode.cycling,
+                Icons.directions_bike,
+                'Cycling',
+              ),
+              _buildTravelModeIcon(
+                context,
+                viewModel,
+                NavigationTravelMode.walking,
+                Icons.directions_walk,
+                'Walking',
+              ),
+              _buildTravelModeIcon(
+                context,
+                viewModel,
+                NavigationTravelMode.twoWheeler,
+                Icons.two_wheeler,
+                'Two-Wheeler',
+              ),
+              _buildTravelModeIcon(
+                context,
+                viewModel,
+                NavigationTravelMode.taxi,
+                Icons.local_taxi,
+                'Taxi',
+              ),
             ],
           ),
           const SizedBox(height: 8),
@@ -444,11 +596,16 @@ class _RouteSelectionCard extends StatelessWidget {
           ),
         ],
       ),
-
     );
   }
 
-  Widget _buildTravelModeIcon(BuildContext context, HomeViewModel viewModel, NavigationTravelMode mode, IconData icon, String tooltip) {
+  Widget _buildTravelModeIcon(
+    BuildContext context,
+    HomeViewModel viewModel,
+    NavigationTravelMode mode,
+    IconData icon,
+    String tooltip,
+  ) {
     final isSelected = viewModel.travelMode == mode;
     return Tooltip(
       message: tooltip,
@@ -509,8 +666,13 @@ class _RouteSelectionCard extends StatelessWidget {
                         initialQuery: value ?? '',
                       ),
                     ),
-                  );
+                  ).then((_) {
+                    if (context.mounted) {
+                      FocusScope.of(context).unfocus();
+                    }
+                  });
                 },
+
                 borderRadius: BorderRadius.circular(12),
                 child: Container(
                   padding: const EdgeInsets.symmetric(

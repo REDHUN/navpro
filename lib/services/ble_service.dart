@@ -20,11 +20,23 @@ class BleService extends ChangeNotifier {
 
   Future<void> scanForDevices(
       Function(List<ScanResult> results) onScanResults) async {
-    FlutterBluePlus.scanResults.listen((results) {
-      onScanResults(results);
-    });
-    await FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
+    try {
+      // Check if bluetooth is on
+      final state = await FlutterBluePlus.adapterState.first;
+      if (state != BluetoothAdapterState.on) {
+        throw Exception('Bluetooth is turned off. Please turn it on to scan.');
+      }
+
+      FlutterBluePlus.scanResults.listen((results) {
+        onScanResults(results);
+      });
+      await FlutterBluePlus.startScan(timeout: const Duration(seconds: 4));
+    } catch (e) {
+      print('BLE Scan error: $e');
+      rethrow;
+    }
   }
+
 
   void stopScan() {
     FlutterBluePlus.stopScan();

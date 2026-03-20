@@ -582,15 +582,7 @@ class _NavigationScreenState extends State<NavigationScreen>
                                 ],
                               ),
                             ),
-                            // Progress Bar
-                            const LinearProgressIndicator(
-                              value: 0.6, // Placeholder progress
-                              backgroundColor: Color(0xFFE8EAF6),
-                              valueColor: AlwaysStoppedAnimation<Color>(
-                                Color(0xFF3F51B5),
-                              ),
-                              minHeight: 4,
-                            ),
+
                             SizedBox(
                               height: MediaQuery.of(context).padding.bottom,
                             ),
