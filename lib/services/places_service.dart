@@ -1,13 +1,15 @@
 import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:google_navigation_flutter/google_navigation_flutter.dart';
-import '../models/place_model.dart';
+
 import '../appconstant.dart';
+import '../models/place_model.dart';
 
 class PlacesService {
   // Retrieve API key from constants instead of hardcoding
-  static const String _apiKey = AppConstants.googleApiKey;
-  
+  static final String _apiKey = AppConstants.googleApiKey;
+
   final Dio _dio = Dio();
 
   Future<List<PlaceModel>> getAutocomplete(String query) async {
@@ -43,10 +45,7 @@ class PlacesService {
         final data = response.data;
         if (data['status'] == 'OK') {
           final location = data['result']['geometry']['location'];
-          return LatLng(
-            latitude: location['lat'],
-            longitude: location['lng'],
-          );
+          return LatLng(latitude: location['lat'], longitude: location['lng']);
         }
       }
     } catch (e) {

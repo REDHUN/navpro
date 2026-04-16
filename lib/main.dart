@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'screens/home_screen.dart';
 import 'services/ble_service.dart';
 import 'services/navigation_service.dart';
@@ -10,8 +11,9 @@ import 'viewmodels/home_viewmodel.dart';
 import 'viewmodels/navigation_viewmodel.dart';
 import 'viewmodels/place_search_view_model.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   runApp(const NavProApp());
 }
 
