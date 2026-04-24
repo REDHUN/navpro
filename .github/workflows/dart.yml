@@ -28,6 +28,8 @@ jobs:
       - name: Install CocoaPods
         run: |
           cd ios
+          rm -rf Pods Podfile.lock
+          pod deintegrate
           pod install --repo-update
 
       # ✅ Build
