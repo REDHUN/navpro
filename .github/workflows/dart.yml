@@ -7,21 +7,34 @@ jobs:
   build-ios:
     name: 🎉 iOS Build
     runs-on: macos-latest
+
     steps:
       - uses: actions/checkout@v3
 
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          architecture: x64
-      - run: flutter pub get
-      
 
-      - run: pod repo update
-        working-directory: ios
+      # ✅ ADD THIS (VERY IMPORTANT)
+      - name: Clean Flutter
+        run: flutter clean
 
-      - run: flutter build ios --release --no-codesign
+      # ✅ Ensure dependencies
+      - name: Get packages
+        run: flutter pub get
 
+      # ✅ Install pods AFTER clean
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+
+      # ✅ Build
+      - name: Build iOS
+        run: flutter build ios --release --no-codesign
+
+      # Create IPA
       - run: mkdir Payload
         working-directory: build/ios/iphoneos
 
