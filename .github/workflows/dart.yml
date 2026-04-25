@@ -6,7 +6,7 @@ on:
 jobs:
   build-ios:
     name: 🎉 iOS Build
-    runs-on: macos-latest
+    runs-on: macos-14 # macOS 14 includes Xcode 15+ which is required for iOS 16 builds
 
     steps:
       - name: Checkout code
@@ -16,33 +16,39 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
+          flutter-version: '3.19.0' # Optional: Specify your version if needed
 
-      # ✅ Clean (important)
       - name: Clean project
         run: flutter clean
 
-      # ✅ Get dependencies
       - name: Get packages
         run: flutter pub get
 
-      # ✅ Install pods properly
       - name: Install CocoaPods
         run: |
           cd ios
+          # Ensure Cocoapods is updated to handle new dependency resolution
+          gem install cocoapods
           rm -rf Pods Podfile.lock
           pod deintegrate
+          pod repo update
           pod install --repo-update
 
-      # ✅ Correct build command (NO signing required)
       - name: Build IPA
-        run: flutter build ipa --no-codesign
+        run: flutter build ipa --no-codesign --release
 
-      # ✅ Upload IPA (correct path)
       - name: Upload IPA
+        uses: actions/upload-artifact@v3
+        with:
+          name: ios-ipa
+          path: build/ios/ipa/*.ipa
+          
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: build/ios/ipa/*.ipa
-          tag: v1.0
+          tag: ${{ github.ref_name }}
           overwrite: true
           body: "iOS IPA build (no signing)"
