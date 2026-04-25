@@ -6,62 +6,48 @@ on:
 jobs:
   build-ios:
     name: 🎉 iOS Build
-    runs-on: macos-14
+    runs-on: macos-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v3
 
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@v2
         with:
-          channel: stable
-          flutter-version: '3.19.0'
+          channel: 'stable'
+          architecture: x64
 
-      - name: Clean project
-        run: flutter clean
+      # Clean previous builds
+      - run: flutter clean
 
-      - name: Get packages
-        run: flutter pub get
+      # Get dependencies
+      - run: flutter pub get
 
-      - name: Install CocoaPods
-        run: |
-          cd ios
-          gem install cocoapods
-          rm -rf Pods Podfile.lock
-          pod deintegrate
-          pod repo update
-          pod install --repo-update
+      # Update CocoaPods
+      - run: pod repo update
+        working-directory: ios
 
-      - name: Build iOS App
-        # We pass PROVISIONING_PROFILE_SPECIFIER and DEVELOPMENT_TEAM as empty 
-        # to bypass the Xcode requirement for a team during the build phase.
-        run: |
-          flutter build ios --release --no-codesign \
-            --build-name=1.0.0 \
-            --build-number=1 \
-            --extra-gen-snapshot-options="--no-incremental-cc" \
-            --debug-dart-performance
+      # Build iOS app (without code signing)
+      - run: flutter build ios --release --no-codesign
 
-      - name: Create IPA (Manual)
-        run: |
-          mkdir -p build/ios/iphoneos/Payload
-          cp -R build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
-          cd build/ios/iphoneos
-          zip -r navprov2.ipa Payload
+      # Create Payload folder
+      - run: mkdir Payload
+        working-directory: build/ios/iphoneos
 
-      - name: Upload IPA Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ios-ipa
-          path: build/ios/iphoneos/navprov2.ipa
-          
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
+      # Move app into Payload
+      - run: mv Runner.app/ Payload
+        working-directory: build/ios/iphoneos
+
+      # Zip into IPA
+      - name: Zip output
+        run: zip -qq -r -9 FlutterIpaExport.ipa Payload
+        working-directory: build/ios/iphoneos
+
+      # Upload IPA to GitHub release
+      - name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: build/ios/iphoneos/navprov2.ipa
-          tag: ${{ github.ref_name }}
+          file: build/ios/iphoneos/FlutterIpaExport.ipa
+          tag: v1.0
           overwrite: true
-          body: "iOS IPA build (no signing)"
+          body: "This is first release"
