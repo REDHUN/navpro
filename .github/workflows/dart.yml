@@ -10,13 +10,13 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4 # Upgraded to v4
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-version: '3.19.0' # Optional: Specify your version if needed
+          flutter-version: '3.19.0'
 
       - name: Clean project
         run: flutter clean
@@ -27,7 +27,7 @@ jobs:
       - name: Install CocoaPods
         run: |
           cd ios
-          # Ensure Cocoapods is updated to handle new dependency resolution
+          # Ensure Cocoapods is updated
           gem install cocoapods
           rm -rf Pods Podfile.lock
           pod deintegrate
@@ -38,7 +38,7 @@ jobs:
         run: flutter build ipa --no-codesign --release
 
       - name: Upload IPA
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4 # Upgraded to v4
         with:
           name: ios-ipa
           path: build/ios/ipa/*.ipa
