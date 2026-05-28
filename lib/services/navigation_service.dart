@@ -33,6 +33,7 @@ class NavigationService {
   StreamSubscription<NavInfoEvent>? _navInfoSubscription;
   StreamSubscription<Position>? _positionSubscription;
   StreamSubscription<OnArrivalEvent>? _onArrivalSubscription;
+  StreamSubscription<RoadSnappedLocationUpdatedEvent>? _roadSnappedSubscription;
 
   bool _isNavigating = false;
   final ValueNotifier<double> speedNotifier = ValueNotifier<double>(0.0);
@@ -108,6 +109,30 @@ class NavigationService {
       if (status == NavigationRouteStatus.statusOk) {
         await GoogleMapsNavigator.startGuidance();
 
+        if (bleService.isConnected) {
+          try {
+            final List<RouteSegment> segments = await GoogleMapsNavigator.getRouteSegments();
+            final List<List<double>> routePoints = [];
+            for (final segment in segments) {
+              if (segment.latLngs != null) {
+                for (final latLng in segment.latLngs!) {
+                  if (latLng != null) {
+                    routePoints.add([latLng.latitude, latLng.longitude]);
+                  }
+                }
+              }
+            }
+            if (routePoints.isNotEmpty) {
+              debugPrint('Extracted ${routePoints.length} points from Navigation SDK.');
+              unawaited(bleService.sendSdkRoute(routePoints));
+            } else {
+              debugPrint('Navigation SDK returned empty segments.');
+            }
+          } catch (e) {
+            debugPrint('Error extracting route segments: $e');
+          }
+        }
+
         if (simulate) {
           if (start != null) {
             await GoogleMapsNavigator.simulator.setUserLocation(start);
@@ -149,6 +174,15 @@ class NavigationService {
           arrivalTime: 0,
         );
       }
+    });
+
+    _roadSnappedSubscription?.cancel();
+    GoogleMapsNavigator.setRoadSnappedLocationUpdatedListener((event) {
+      if (bleService.isConnected) {
+        bleService.sendLocation(event.location.latitude, event.location.longitude);
+      }
+    }).then((sub) {
+      _roadSnappedSubscription = sub;
     });
   }
 
@@ -289,6 +323,8 @@ class NavigationService {
     _onArrivalSubscription = null;
     _positionSubscription?.cancel();
     _positionSubscription = null;
+    _roadSnappedSubscription?.cancel();
+    _roadSnappedSubscription = null;
 
     try {
       if (await GoogleMapsNavigator.isGuidanceRunning()) {
