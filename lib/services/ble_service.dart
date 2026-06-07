@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:dio/dio.dart';
@@ -46,6 +47,7 @@ class BleService extends ChangeNotifier {
 
   // Current Route List for Location/Index calculations
   List<List<double>> _currentRoute = [];
+  List<List<double>> get currentRoute => _currentRoute;
 
   // Track the last time we sent data for throttling
   DateTime? _lastSendTime;
@@ -443,5 +445,34 @@ class BleService extends ChangeNotifier {
     }
   }
 
+  // Calculate speed: 80 km/h on straight paths, drops to 30 km/h in corners
+  double calculateSimulatedSpeed(int currentIdx) {
+    if (_currentRoute.isEmpty) return 80.0;
+    if (currentIdx >= _currentRoute.length - 2) return 80.0;
 
+    final double vehicleLat = _currentRoute[currentIdx][0];
+    final double vehicleLon = _currentRoute[currentIdx][1];
+    final double targetLat = _currentRoute[currentIdx + 1][0];
+    final double targetLon = _currentRoute[currentIdx + 1][1];
+    final double lat3 = _currentRoute[currentIdx + 2][0];
+    final double lon3 = _currentRoute[currentIdx + 2][1];
+
+    final double v1Lat = targetLat - vehicleLat;
+    final double v1Lon = targetLon - vehicleLon;
+    final double v2Lat = lat3 - targetLat;
+    final double v2Lon = lon3 - targetLon;
+
+    final double len1 = math.sqrt(v1Lat * v1Lat + v1Lon * v1Lon);
+    final double len2 = math.sqrt(v2Lat * v2Lat + v2Lon * v2Lon);
+
+    if (len1 > 0 && len2 > 0) {
+      final double dot = (v1Lat * v2Lat + v1Lon * v2Lon) / (len1 * len2);
+      final double clampedDot = dot.clamp(-1.0, 1.0);
+      final double angle = math.acos(clampedDot) * 180.0 / math.pi;
+      if (angle > 15.0) { // Sharp corner
+        return 30.0;
+      }
+    }
+    return 80.0;
+  }
 }

@@ -39,6 +39,7 @@ class NavigationService {
   final ValueNotifier<double> speedNotifier = ValueNotifier<double>(0.0);
   final ValueNotifier<NavData?> navDataNotifier = ValueNotifier<NavData?>(null);
   bool _sessionActive = false;
+  bool _isSimulating = false;
 
   NavigationService(this.bleService);
 
@@ -108,6 +109,7 @@ class NavigationService {
 
       if (status == NavigationRouteStatus.statusOk) {
         await GoogleMapsNavigator.startGuidance();
+        _isSimulating = simulate;
 
         if (bleService.isConnected) {
           try {
@@ -180,6 +182,14 @@ class NavigationService {
     GoogleMapsNavigator.setRoadSnappedLocationUpdatedListener((event) {
       if (bleService.isConnected) {
         bleService.sendLocation(event.location.latitude, event.location.longitude);
+      }
+      if (_isSimulating) {
+        final int closestIdx = bleService.findClosestRouteIndex(
+          LatLng(latitude: event.location.latitude, longitude: event.location.longitude),
+          bleService.currentRoute,
+        );
+        final double simSpeed = bleService.calculateSimulatedSpeed(closestIdx);
+        speedNotifier.value = simSpeed;
       }
     }).then((sub) {
       _roadSnappedSubscription = sub;
@@ -316,6 +326,7 @@ class NavigationService {
     debugPrint('NavigationService: stopNavigation starting...');
     _isNavigating = false;
     _sessionActive = false;
+    _isSimulating = false;
 
     _navInfoSubscription?.cancel();
     _navInfoSubscription = null;
